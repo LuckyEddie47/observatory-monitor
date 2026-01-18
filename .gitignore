@@ -1,0 +1,37 @@
+# Build directories
+build/
+build-*/
+*.user
+*.autosave
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Compiled
+*.o
+*.so
+*.a
+moc_*
+qrc_*
+*.qm
+
+# Logs
+logs/*.log
+logs/*.txt
+!logs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.pro.user
+
+# Generated configs (keep examples)
+config/config.yaml
+config/simulator.yaml
+
+# Qt generated
+*_autogen/
