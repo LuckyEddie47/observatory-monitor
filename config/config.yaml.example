@@ -1,0 +1,28 @@
+# Observatory Monitor Configuration
+# This is an example configuration file
+# Copy to ~/.config/observatory-monitor/config.yaml and customize
+
+mqtt:
+  broker:
+    host: "localhost"
+    port: 1883
+    username: ""       # Optional: leave empty for no authentication
+    password: ""       # Optional: leave empty for no authentication
+  timeout: 2.0         # Seconds to wait for MQTT responses (valid range: 0.5 - 30.0)
+  reconnect_interval: 10  # Seconds between reconnection attempts (valid range: 1 - 300)
+
+controllers:
+  - name: "Observatory"
+    type: "Observatory"
+    prefix: "OCS"      # MQTT topic prefix (e.g., messages to OCS/cmd)
+    enabled: true
+
+equipment_types:
+  - name: "Observatory"
+    controllers: ["OCS"]
+  - name: "Telescope"
+    controllers: ["OnStepX"]
+  - name: "Auxiliary"
+    controllers: []
+  - name: "Other"
+    controllers: []

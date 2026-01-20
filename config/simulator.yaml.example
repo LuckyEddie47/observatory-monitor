@@ -1,0 +1,26 @@
+# MQTT Simulator Configuration
+# Defines command/response pairs for testing
+
+simulator:
+  broker:
+    host: "localhost"
+    port: 1883
+    username: ""
+    password: ""
+  
+  controllers:
+    - prefix: "OCS"
+      commands:
+        - command: ":DZ#"
+          response: "Received: :DZ#, Response: 306.640#, Source: MQTT"
+          delay_ms: 50
+          
+        - command: ":RS#"
+          response: "Received: :RS#, Response: OPEN#, Source: MQTT"
+          delay_ms: 50
+          
+        - command: ":RC#"
+          response: ""  # No response for this command
+          
+        - command: ":RO#"
+          response: ""  # No response for this command
