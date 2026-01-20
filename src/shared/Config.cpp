@@ -26,6 +26,11 @@ void Config::setDefaults()
     m_mqttTimeout = 2.0;
     m_reconnectInterval = 10;
     
+    // Logging defaults
+    m_logging = LoggingConfig();
+    m_logging.debugEnabled = false;
+    m_logging.maxTotalSizeMB = 100;
+    
     // Default controller
     m_controllers.clear();
     ControllerConfig defaultController;
@@ -120,6 +125,13 @@ bool Config::loadFromFile(const QString& filePath, QString& errorMessage)
             }
         }
         
+        // Parse logging settings
+        if (config["logging"]) {
+            YAML::Node logging = config["logging"];
+            if (logging["debug_enabled"]) m_logging.debugEnabled = logging["debug_enabled"].as<bool>();
+            if (logging["max_total_size_mb"]) m_logging.maxTotalSizeMB = logging["max_total_size_mb"].as<int>();
+        }
+        
         return true;
         
     } catch (const YAML::ParserException& e) {
@@ -205,6 +217,13 @@ bool Config::saveToFile(const QString& filePath, QString& errorMessage)
         }
         out << YAML::EndSeq;
         
+        // Logging section
+        out << YAML::Key << "logging";
+        out << YAML::Value << YAML::BeginMap;
+        out << YAML::Key << "debug_enabled" << YAML::Value << m_logging.debugEnabled;
+        out << YAML::Key << "max_total_size_mb" << YAML::Value << m_logging.maxTotalSizeMB;
+        out << YAML::EndMap;
+        
         out << YAML::EndMap;
         
         // Write to file
@@ -249,6 +268,11 @@ bool Config::validate(QString& errorMessage) const
         errors << typeError;
     }
     
+    QString logError;
+    if (!validateLogging(logError)) {
+        errors << logError;
+    }
+    
     if (!errors.isEmpty()) {
         errorMessage = "Configuration validation failed:\n\n" + errors.join("\n\n");
         return false;
@@ -270,115 +294,126 @@ bool Config::validateBroker(QString& errorMessage) const
     if (m_broker.port < 1 || m_broker.port > 65535) {
         errors << QString("MQTT broker port is invalid: %1 (mqtt.broker.port)\n"
                          "Valid range: 1-65535")
-                         .arg(m_broker.port);
-    }
-    
-    // Validate timeout
-    if (m_mqttTimeout < 0.5 || m_mqttTimeout > 30.0) {
-        errors << QString("MQTT timeout is out of range: %1 seconds (mqtt.timeout)\n"
-                         "Valid range: 0.5-30.0 seconds")
-                         .arg(m_mqttTimeout);
-    }
-    
-    // Validate reconnect interval
-    if (m_reconnectInterval < 1 || m_reconnectInterval > 300) {
-        errors << QString("MQTT reconnect interval is out of range: %1 seconds (mqtt.reconnect_interval)\n"
-                         "Valid range: 1-300 seconds")
-                         .arg(m_reconnectInterval);
-    }
-    
-    if (!errors.isEmpty()) {
-        errorMessage = "Broker configuration errors:\n" + errors.join("\n");
-        return false;
-    }
-    
-    return true;
+			.arg(m_broker.port);
+	}
+// Validate timeout
+if (m_mqttTimeout < 0.5 || m_mqttTimeout > 30.0) {
+    errors << QString("MQTT timeout is out of range: %1 seconds (mqtt.timeout)\n"
+                     "Valid range: 0.5-30.0 seconds")
+                     .arg(m_mqttTimeout);
 }
 
+// Validate reconnect interval
+if (m_reconnectInterval < 1 || m_reconnectInterval > 300) {
+    errors << QString("MQTT reconnect interval is out of range: %1 seconds (mqtt.reconnect_interval)\n"
+                     "Valid range: 1-300 seconds")
+                     .arg(m_reconnectInterval);
+}
+
+if (!errors.isEmpty()) {
+    errorMessage = "Broker configuration errors:\n" + errors.join("\n");
+    return false;
+}
+
+return true;
+}
 bool Config::validateControllers(QString& errorMessage) const
 {
-    QStringList errors;
-    
-    // Check if at least one controller is defined
-    if (m_controllers.isEmpty()) {
-        errors << "No controllers defined (controllers section is empty)\n"
-                  "At least one controller must be configured";
-    }
-    
-    // Validate each controller
-    for (int i = 0; i < m_controllers.size(); i++) {
-        const auto& ctrl = m_controllers[i];
-        QString prefix = QString("Controller #%1").arg(i + 1);
-        
-        if (ctrl.name.isEmpty()) {
-            errors << QString("%1: name is empty (controllers[%2].name)").arg(prefix).arg(i);
-        }
-        
-        if (ctrl.type.isEmpty()) {
-            errors << QString("%1: type is empty (controllers[%2].type)").arg(prefix).arg(i);
-        }
-        
-        if (ctrl.prefix.isEmpty()) {
-            errors << QString("%1: MQTT prefix is empty (controllers[%2].prefix)").arg(prefix).arg(i);
-        }
-        
-        // Check for duplicate prefixes
-        for (int j = i + 1; j < m_controllers.size(); j++) {
-            if (ctrl.prefix == m_controllers[j].prefix && !ctrl.prefix.isEmpty()) {
-                errors << QString("%1: duplicate MQTT prefix '%2' found at controllers[%3] and controllers[%4]")
-                                 .arg(prefix)
-                                 .arg(ctrl.prefix)
-                                 .arg(i)
-                                 .arg(j);
-            }
-        }
-    }
-    
-    if (!errors.isEmpty()) {
-        errorMessage = "Controller configuration errors:\n" + errors.join("\n");
-        return false;
-    }
-    
-    return true;
+QStringList errors;
+// Check if at least one controller is defined
+if (m_controllers.isEmpty()) {
+    errors << "No controllers defined (controllers section is empty)\n"
+              "At least one controller must be configured";
 }
 
+// Validate each controller
+for (int i = 0; i < m_controllers.size(); i++) {
+    const auto& ctrl = m_controllers[i];
+    QString prefix = QString("Controller #%1").arg(i + 1);
+    
+    if (ctrl.name.isEmpty()) {
+        errors << QString("%1: name is empty (controllers[%2].name)").arg(prefix).arg(i);
+    }
+    
+    if (ctrl.type.isEmpty()) {
+        errors << QString("%1: type is empty (controllers[%2].type)").arg(prefix).arg(i);
+    }
+    
+    if (ctrl.prefix.isEmpty()) {
+        errors << QString("%1: MQTT prefix is empty (controllers[%2].prefix)").arg(prefix).arg(i);
+    }
+    
+    // Check for duplicate prefixes
+    for (int j = i + 1; j < m_controllers.size(); j++) {
+        if (ctrl.prefix == m_controllers[j].prefix && !ctrl.prefix.isEmpty()) {
+            errors << QString("%1: duplicate MQTT prefix '%2' found at controllers[%3] and controllers[%4]")
+                             .arg(prefix)
+                             .arg(ctrl.prefix)
+                             .arg(i)
+                             .arg(j);
+        }
+    }
+}
+
+if (!errors.isEmpty()) {
+    errorMessage = "Controller configuration errors:\n" + errors.join("\n");
+    return false;
+}
+
+return true;
+}
 bool Config::validateEquipmentTypes(QString& errorMessage) const
 {
-    QStringList errors;
-    
-    // Check if at least one equipment type is defined
-    if (m_equipmentTypes.isEmpty()) {
-        errors << "No equipment types defined (equipment_types section is empty)\n"
-                  "At least one equipment type must be configured";
-    }
-    
-    // Validate each equipment type
-    for (int i = 0; i < m_equipmentTypes.size(); i++) {
-        const auto& type = m_equipmentTypes[i];
-        
-        if (type.name.isEmpty()) {
-            errors << QString("Equipment type #%1: name is empty (equipment_types[%2].name)")
-                             .arg(i + 1)
-                             .arg(i);
-        }
-        
-        // Check for duplicate names
-        for (int j = i + 1; j < m_equipmentTypes.size(); j++) {
-            if (type.name == m_equipmentTypes[j].name && !type.name.isEmpty()) {
-                errors << QString("Duplicate equipment type name '%1' found at equipment_types[%2] and equipment_types[%3]")
-                                 .arg(type.name)
-                                 .arg(i)
-                                 .arg(j);
-            }
-        }
-    }
-    
-    if (!errors.isEmpty()) {
-        errorMessage = "Equipment type configuration errors:\n" + errors.join("\n");
-        return false;
-    }
-    
-    return true;
+QStringList errors;
+// Check if at least one equipment type is defined
+if (m_equipmentTypes.isEmpty()) {
+    errors << "No equipment types defined (equipment_types section is empty)\n"
+              "At least one equipment type must be configured";
 }
 
+// Validate each equipment type
+for (int i = 0; i < m_equipmentTypes.size(); i++) {
+    const auto& type = m_equipmentTypes[i];
+    
+    if (type.name.isEmpty()) {
+        errors << QString("Equipment type #%1: name is empty (equipment_types[%2].name)")
+                         .arg(i + 1)
+                         .arg(i);
+    }
+    
+    // Check for duplicate names
+    for (int j = i + 1; j < m_equipmentTypes.size(); j++) {
+        if (type.name == m_equipmentTypes[j].name && !type.name.isEmpty()) {
+            errors << QString("Duplicate equipment type name '%1' found at equipment_types[%2] and equipment_types[%3]")
+                             .arg(type.name)
+                             .arg(i)
+                             .arg(j);
+        }
+    }
+}
+
+if (!errors.isEmpty()) {
+    errorMessage = "Equipment type configuration errors:\n" + errors.join("\n");
+    return false;
+}
+
+return true;
+}
+bool Config::validateLogging(QString& errorMessage) const
+{
+QStringList errors;
+// Validate max total size
+if (m_logging.maxTotalSizeMB < 1 || m_logging.maxTotalSizeMB > 10000) {
+    errors << QString("Logging max total size is out of range: %1 MB (logging.max_total_size_mb)\n"
+                     "Valid range: 1-10000 MB")
+                     .arg(m_logging.maxTotalSizeMB);
+}
+
+if (!errors.isEmpty()) {
+    errorMessage = "Logging configuration errors:\n" + errors.join("\n");
+    return false;
+}
+
+return true;
+}
 } // namespace ObservatoryMonitor

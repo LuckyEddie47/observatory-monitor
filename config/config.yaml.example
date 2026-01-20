@@ -26,3 +26,7 @@ equipment_types:
     controllers: []
   - name: "Other"
     controllers: []
+
+logging:
+  debug_enabled: false     # Enable verbose debug logging (default: false)
+  max_total_size_mb: 100   # Maximum total size of all log files in MB (valid range: 1-10000)

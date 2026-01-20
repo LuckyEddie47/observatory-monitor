@@ -4,6 +4,7 @@ add_library(observatory-shared STATIC
     version.cpp
     Config.cpp
     SimulatorConfig.cpp
+    Logger.cpp
 )
 
 target_include_directories(observatory-shared PUBLIC

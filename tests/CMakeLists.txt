@@ -15,4 +15,13 @@ target_link_libraries(test_config PRIVATE
 # Add test to CTest
 add_test(NAME ConfigTests COMMAND test_config)
 
+# Test executable for Logger
+add_executable(test_logger test_logger.cpp)
+target_link_libraries(test_logger PRIVATE
+    observatory-shared
+    Qt6::Test
+)
+
+add_test(NAME LoggerTests COMMAND test_logger)
+
 message(STATUS "Unit tests configured")

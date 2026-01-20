@@ -33,6 +33,14 @@ struct EquipmentType {
     QStringList controllers;
 };
 
+// Structure for logging configuration
+struct LoggingConfig {
+    bool debugEnabled;
+    int maxTotalSizeMB;
+    
+    LoggingConfig() : debugEnabled(false), maxTotalSizeMB(100) {}
+};
+
 // Main configuration class
 class Config {
 public:
@@ -60,6 +68,7 @@ public:
     int reconnectInterval() const { return m_reconnectInterval; }
     QList<ControllerConfig> controllers() const { return m_controllers; }
     QList<EquipmentType> equipmentTypes() const { return m_equipmentTypes; }
+    LoggingConfig logging() const { return m_logging; }
     
     // Setters (for testing)
     void setBroker(const BrokerConfig& broker) { m_broker = broker; }
@@ -67,6 +76,7 @@ public:
     void setReconnectInterval(int interval) { m_reconnectInterval = interval; }
     void addController(const ControllerConfig& controller) { m_controllers.append(controller); }
     void addEquipmentType(const EquipmentType& type) { m_equipmentTypes.append(type); }
+    void setLogging(const LoggingConfig& logging) { m_logging = logging; }
     
 private:
     BrokerConfig m_broker;
@@ -74,11 +84,13 @@ private:
     int m_reconnectInterval;
     QList<ControllerConfig> m_controllers;
     QList<EquipmentType> m_equipmentTypes;
+    LoggingConfig m_logging;
     
     // Helper methods
     bool validateBroker(QString& errorMessage) const;
     bool validateControllers(QString& errorMessage) const;
     bool validateEquipmentTypes(QString& errorMessage) const;
+    bool validateLogging(QString& errorMessage) const;
 };
 
 } // namespace ObservatoryMonitor
