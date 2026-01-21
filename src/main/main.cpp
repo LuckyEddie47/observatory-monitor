@@ -153,8 +153,8 @@ int main(int argc, char *argv[])
     logger.info("====================");
     logger.info("");
     
-    // Test MQTT client with first enabled controller
-    logger.info("Phase 3: MQTT Core - Testing");
+    // Test MQTT command queue with first enabled controller
+    logger.info("Phase 4: Command/Response System - Testing");
     logger.info("");
     
     if (config.controllers().isEmpty()) {
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
         // Get first enabled controller
         ControllerConfig ctrl = config.controllers().first();
         
-        logger.info(QString("Testing MQTT with controller: %1").arg(ctrl.name));
+        logger.info(QString("Testing MQTT command queue with controller: %1").arg(ctrl.name));
         
         // Create MQTT client
         MqttClient mqttClient;
@@ -176,9 +176,13 @@ int main(int argc, char *argv[])
         mqttClient.setTopicPrefix(ctrl.prefix);
         mqttClient.setCommandTimeout(config.mqttTimeout() * 1000);  // Convert to ms
         mqttClient.setReconnectInterval(config.reconnectInterval() * 1000);
+        mqttClient.setQueueProcessInterval(100);  // 100ms between commands
+        mqttClient.setMaxQueueSize(50);
         
         // Track connection state
         bool connectionEstablished = false;
+        int responsesReceived = 0;
+        const int expectedResponses = 5;
         
         // Connect signals
         QObject::connect(&mqttClient, &MqttClient::connected, [&logger, &connectionEstablished]() {
@@ -192,6 +196,10 @@ int main(int argc, char *argv[])
         
         QObject::connect(&mqttClient, &MqttClient::errorOccurred, [&logger](const QString& error) {
             logger.error(QString("MQTT: %1").arg(error));
+        });
+        
+        QObject::connect(&mqttClient, &MqttClient::queueOverflow, [&logger](const QString& cmd) {
+            logger.error(QString("MQTT: Queue overflow - command dropped: %1").arg(cmd));
         });
         
         // Connect to broker
@@ -210,32 +218,54 @@ int main(int argc, char *argv[])
         connectionLoop.exec();
         
         if (connectionEstablished) {
-            logger.info("Sending test command: :DZ#");
+            logger.info("Testing command queue with multiple rapid commands...");
+            logger.info("");
             
-            // Send command and wait for response
-            bool responseReceived = false;
+            // Send multiple commands rapidly to test queue
+            QStringList testCommands = {":DZ#", ":RS#", ":DZ#", ":RS#", ":DZ#"};
+            
+            for (const QString& cmd : testCommands) {
+                mqttClient.sendCommand(cmd, [&logger, &responsesReceived, cmd](const QString& command, const QString& response, bool success, int errorCode) {
+                    if (success) {
+                        if (errorCode == -1) {
+                            logger.info(QString("✓ Command '%1' succeeded: %2").arg(command, response));
+                        } else if (errorCode == 0) {
+                            logger.info(QString("✓ Command '%1' succeeded (code 0): %2").arg(command, response));
+                        } else {
+                            logger.warning(QString("⚠ Command '%1' completed with error code %2: %3").arg(command).arg(errorCode).arg(response));
+                        }
+                    } else {
+                        logger.error(QString("✗ Command '%1' failed").arg(command));
+                    }
+                    responsesReceived++;
+                });
+                
+                logger.info(QString("Queued command: %1 (queue size: %2)").arg(cmd).arg(mqttClient.queueSize()));
+            }
+            
+            // Wait for all responses
             QEventLoop responseLoop;
-            QTimer responseTimeout;
-            responseTimeout.setSingleShot(true);
-            responseTimeout.setInterval(config.mqttTimeout() * 1000 + 1000);  // Command timeout + 1 second
+            QTimer responseCheck;
+            responseCheck.setInterval(100);
             
-            mqttClient.sendCommand(":DZ#", [&logger, &responseReceived, &responseLoop](const QString& cmd, const QString& response, bool success) {
-                if (success) {
-                    logger.info(QString("Command '%1' succeeded: %2").arg(cmd, response));
-                } else {
-                    logger.error(QString("Command '%1' failed").arg(cmd));
+            QObject::connect(&responseCheck, &QTimer::timeout, [&]() {
+                if (responsesReceived >= expectedResponses) {
+                    responseLoop.quit();
                 }
-                responseReceived = true;
-                responseLoop.quit();
             });
             
+            QTimer responseTimeout;
+            responseTimeout.setSingleShot(true);
+            responseTimeout.setInterval(15000);  // 15 seconds for all responses
             QObject::connect(&responseTimeout, &QTimer::timeout, &responseLoop, &QEventLoop::quit);
+            
+            responseCheck.start();
             responseTimeout.start();
             responseLoop.exec();
             
-            if (!responseReceived) {
-                logger.warning("Command response timed out");
-            }
+            logger.info("");
+            logger.info(QString("Test complete: %1/%2 responses received").arg(responsesReceived).arg(expectedResponses));
+            
         } else {
             logger.error("Failed to connect to MQTT broker");
             logger.info("Ensure Mosquitto is running: sudo systemctl status mosquitto");
@@ -252,7 +282,7 @@ int main(int argc, char *argv[])
     int result = app.exec();
     
     logger.info("");
-    logger.info("Phase 3: MQTT Core - OK");
+    logger.info("Phase 4: Command/Response System - OK");
     
     // Shutdown logger before exit
     logger.shutdown();
