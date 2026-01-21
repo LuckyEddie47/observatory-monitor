@@ -2,10 +2,6 @@
 
 Cross-platform Qt6/C++ application for monitoring astronomical observatory equipment via MQTT.
 
-## Status
-
-Phase 0: Project Foundation - In Progress
-
 ## Requirements
 
 - Qt 6.8.3 LTS
@@ -19,11 +15,3 @@ Phase 0: Project Foundation - In Progress
 - **Main application**: Observatory monitoring GUI
 - **Simulator**: Mock MQTT client for testing
 - **Shared library**: Common utilities
-
-## Building
-
-See `docs/instructions/phase-00-foundation.md`
-
-## License
-
-TBD
