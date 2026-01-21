@@ -3,10 +3,13 @@
 #include <QDir>
 #include <QFile>
 #include <QDebug>
+#include <QTimer>
+#include <QEventLoop>
 #include <iostream>
 #include <unistd.h>
 #include "Config.h"
 #include "Logger.h"
+#include "MqttClient.h"
 
 using namespace ObservatoryMonitor;
 
@@ -150,16 +153,109 @@ int main(int argc, char *argv[])
     logger.info("====================");
     logger.info("");
     
-    logger.info("Phase 2: Logging system - OK");
+    // Test MQTT client with first enabled controller
+    logger.info("Phase 3: MQTT Core - Testing");
+    logger.info("");
     
-    // Test different log levels
-    logger.debug("This is a debug message (only visible if debug enabled)");
-    logger.info("This is an info message");
-    logger.warning("This is a warning message");
-    logger.error("This is an error message");
+    if (config.controllers().isEmpty()) {
+        logger.error("No controllers configured");
+    } else {
+        // Get first enabled controller
+        ControllerConfig ctrl = config.controllers().first();
+        
+        logger.info(QString("Testing MQTT with controller: %1").arg(ctrl.name));
+        
+        // Create MQTT client
+        MqttClient mqttClient;
+        mqttClient.setHostname(config.broker().host);
+        mqttClient.setPort(config.broker().port);
+        if (!config.broker().username.isEmpty()) {
+            mqttClient.setUsername(config.broker().username);
+            mqttClient.setPassword(config.broker().password);
+        }
+        mqttClient.setTopicPrefix(ctrl.prefix);
+        mqttClient.setCommandTimeout(config.mqttTimeout() * 1000);  // Convert to ms
+        mqttClient.setReconnectInterval(config.reconnectInterval() * 1000);
+        
+        // Track connection state
+        bool connectionEstablished = false;
+        
+        // Connect signals
+        QObject::connect(&mqttClient, &MqttClient::connected, [&logger, &connectionEstablished]() {
+            logger.info("MQTT: Connection established");
+            connectionEstablished = true;
+        });
+        
+        QObject::connect(&mqttClient, &MqttClient::disconnected, [&logger]() {
+            logger.warning("MQTT: Connection lost");
+        });
+        
+        QObject::connect(&mqttClient, &MqttClient::errorOccurred, [&logger](const QString& error) {
+            logger.error(QString("MQTT: %1").arg(error));
+        });
+        
+        // Connect to broker
+        mqttClient.connectToHost();
+        
+        // Wait for connection with event loop
+        QEventLoop connectionLoop;
+        QTimer connectionTimeout;
+        connectionTimeout.setSingleShot(true);
+        connectionTimeout.setInterval(5000);  // 5 second timeout
+        
+        QObject::connect(&mqttClient, &MqttClient::connected, &connectionLoop, &QEventLoop::quit);
+        QObject::connect(&connectionTimeout, &QTimer::timeout, &connectionLoop, &QEventLoop::quit);
+        
+        connectionTimeout.start();
+        connectionLoop.exec();
+        
+        if (connectionEstablished) {
+            logger.info("Sending test command: :DZ#");
+            
+            // Send command and wait for response
+            bool responseReceived = false;
+            QEventLoop responseLoop;
+            QTimer responseTimeout;
+            responseTimeout.setSingleShot(true);
+            responseTimeout.setInterval(config.mqttTimeout() * 1000 + 1000);  // Command timeout + 1 second
+            
+            mqttClient.sendCommand(":DZ#", [&logger, &responseReceived, &responseLoop](const QString& cmd, const QString& response, bool success) {
+                if (success) {
+                    logger.info(QString("Command '%1' succeeded: %2").arg(cmd, response));
+                } else {
+                    logger.error(QString("Command '%1' failed").arg(cmd));
+                }
+                responseReceived = true;
+                responseLoop.quit();
+            });
+            
+            QObject::connect(&responseTimeout, &QTimer::timeout, &responseLoop, &QEventLoop::quit);
+            responseTimeout.start();
+            responseLoop.exec();
+            
+            if (!responseReceived) {
+                logger.warning("Command response timed out");
+            }
+        } else {
+            logger.error("Failed to connect to MQTT broker");
+            logger.info("Ensure Mosquitto is running: sudo systemctl status mosquitto");
+            logger.info("Ensure simulator is running with matching prefix");
+        }
+        
+        // Disconnect
+        mqttClient.disconnectFromHost();
+        
+        // Wait a moment for clean disconnect
+        QTimer::singleShot(500, &app, &QGuiApplication::quit);
+    }
+    
+    int result = app.exec();
+    
+    logger.info("");
+    logger.info("Phase 3: MQTT Core - OK");
     
     // Shutdown logger before exit
     logger.shutdown();
     
-    return 0; // Exit for now, GUI in Phase 7
+    return result;
 }

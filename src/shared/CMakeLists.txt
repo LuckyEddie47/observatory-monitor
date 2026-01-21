@@ -5,6 +5,7 @@ add_library(observatory-shared STATIC
     Config.cpp
     SimulatorConfig.cpp
     Logger.cpp
+    MqttClient.cpp
 )
 
 target_include_directories(observatory-shared PUBLIC

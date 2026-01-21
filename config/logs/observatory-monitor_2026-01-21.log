@@ -1,0 +1,48 @@
+[2026-01-21 16:48:27.620] [INFO ] Logger initialized
+[2026-01-21 16:48:27.620] [INFO ] =================================================
+[2026-01-21 16:48:27.620] [INFO ] MQTT Simulator initialized
+[2026-01-21 16:48:27.620] [INFO ] Qt version: 6.8.3
+[2026-01-21 16:48:27.620] [INFO ] =================================================
+[2026-01-21 16:48:27.620] [INFO ] 
+[2026-01-21 16:48:27.620] [INFO ] === Simulator Configuration ===
+[2026-01-21 16:48:27.620] [INFO ] MQTT Broker: localhost:1883
+[2026-01-21 16:48:27.620] [INFO ] 
+[2026-01-21 16:48:27.620] [INFO ] Simulated Controllers: 1
+[2026-01-21 16:48:27.620] [INFO ]   - Prefix: OCS
+[2026-01-21 16:48:27.620] [INFO ]     Commands: 4
+[2026-01-21 16:48:27.620] [INFO ]       * :DZ# -> Received: :DZ#, Response: 306.640#, Source: MQTT...
+[2026-01-21 16:48:27.620] [INFO ]       * :RS# -> Received: :RS#, Response: OPEN#, Source: MQTT...
+[2026-01-21 16:48:27.620] [INFO ]       * :RC# -> (no response)
+[2026-01-21 16:48:27.620] [INFO ]       * :RO# -> (no response)
+[2026-01-21 16:48:27.620] [INFO ] ===============================
+[2026-01-21 16:48:27.620] [INFO ] 
+[2026-01-21 16:48:27.620] [INFO ] Phase 3: MQTT Core - Simulator ready
+[2026-01-21 16:48:27.620] [INFO ] 
+[2026-01-21 16:48:27.678] [INFO ] Simulator: Connecting to MQTT broker...
+[2026-01-21 16:48:27.678] [INFO ] Simulator running. Press Ctrl+C to stop.
+[2026-01-21 16:48:27.681] [INFO ] Simulator: Connected to localhost:1883
+[2026-01-21 16:48:27.681] [INFO ] Simulator: Subscribing to OCS/cmd
+[2026-01-21 16:52:33.267] [INFO ] Logger initialized
+[2026-01-21 16:52:33.267] [INFO ] =================================================
+[2026-01-21 16:52:33.267] [INFO ] MQTT Simulator initialized
+[2026-01-21 16:52:33.267] [INFO ] Qt version: 6.8.3
+[2026-01-21 16:52:33.267] [INFO ] =================================================
+[2026-01-21 16:52:33.267] [INFO ] 
+[2026-01-21 16:52:33.267] [INFO ] === Simulator Configuration ===
+[2026-01-21 16:52:33.267] [INFO ] MQTT Broker: localhost:1883
+[2026-01-21 16:52:33.267] [INFO ] 
+[2026-01-21 16:52:33.267] [INFO ] Simulated Controllers: 1
+[2026-01-21 16:52:33.267] [INFO ]   - Prefix: OCS
+[2026-01-21 16:52:33.267] [INFO ]     Commands: 4
+[2026-01-21 16:52:33.267] [INFO ]       * :DZ# -> Received: :DZ#, Response: 306.640#, Source: MQTT...
+[2026-01-21 16:52:33.267] [INFO ]       * :RS# -> Received: :RS#, Response: OPEN#, Source: MQTT...
+[2026-01-21 16:52:33.267] [INFO ]       * :RC# -> (no response)
+[2026-01-21 16:52:33.267] [INFO ]       * :RO# -> (no response)
+[2026-01-21 16:52:33.267] [INFO ] ===============================
+[2026-01-21 16:52:33.267] [INFO ] 
+[2026-01-21 16:52:33.267] [INFO ] Phase 3: MQTT Core - Simulator ready
+[2026-01-21 16:52:33.267] [INFO ] 
+[2026-01-21 16:52:33.326] [INFO ] Simulator: Connecting to MQTT broker...
+[2026-01-21 16:52:33.326] [INFO ] Simulator running. Press Ctrl+C to stop.
+[2026-01-21 16:52:33.326] [INFO ] Simulator: Connected to localhost:1883
+[2026-01-21 16:52:33.326] [INFO ] Simulator: Subscribing to OCS/cmd
