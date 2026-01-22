@@ -9,8 +9,7 @@
 #include <unistd.h>
 #include "Config.h"
 #include "Logger.h"
-#include "MqttClient.h"
-#include "ControllerPoller.h"
+#include "ControllerManager.h"
 
 using namespace ObservatoryMonitor;
 
@@ -154,142 +153,146 @@ int main(int argc, char *argv[])
     logger.info("====================");
     logger.info("");
     
-    // Test polling engine with first enabled controller
-    logger.info("Phase 5: Polling Engine - Testing");
+    // Test multi-controller support
+    logger.info("Phase 6: Multi-Controller Support - Testing");
     logger.info("");
     
     if (config.controllers().isEmpty()) {
         logger.error("No controllers configured");
-    } else {
-        // Get first enabled controller
-        ControllerConfig ctrl = config.controllers().first();
-        
-        logger.info(QString("Testing polling engine with controller: %1").arg(ctrl.name));
-        
-        // Create MQTT client
-        MqttClient mqttClient;
-        mqttClient.setHostname(config.broker().host);
-        mqttClient.setPort(config.broker().port);
-        if (!config.broker().username.isEmpty()) {
-            mqttClient.setUsername(config.broker().username);
-            mqttClient.setPassword(config.broker().password);
+        return 1;
+    }
+    
+    logger.info(QString("Testing ControllerManager with %1 controller(s)").arg(config.controllers().size()));
+    
+    // Create controller manager - MUST be declared here to live long enough for timers
+    ControllerManager manager;
+    
+    // Track system status changes
+    int statusChangeCount = 0;
+    
+    // Connect signals
+    QObject::connect(&manager, &ControllerManager::systemStatusChanged, [&logger, &statusChangeCount](SystemStatus status) {
+        QString statusStr;
+        QString emoji;
+        switch (status) {
+            case SystemStatus::AllConnected:
+                statusStr = "GREEN - All controllers connected";
+                emoji = "🟢";
+                break;
+            case SystemStatus::PartiallyConnected:
+                statusStr = "YELLOW - Partially connected";
+                emoji = "🟡";
+                break;
+            case SystemStatus::Disconnected:
+                statusStr = "RED - Disconnected";
+                emoji = "🔴";
+                break;
         }
-        mqttClient.setTopicPrefix(ctrl.prefix);
-        mqttClient.setCommandTimeout(config.mqttTimeout() * 1000);  // Convert to ms
-        mqttClient.setReconnectInterval(config.reconnectInterval() * 1000);
+        logger.info(QString("%1 System Status: %2").arg(emoji, statusStr));
+        statusChangeCount++;
+    });
+    
+    QObject::connect(&manager, &ControllerManager::controllerStatusChanged, [&logger](const QString& name, ControllerStatus status) {
+        QString statusStr;
+        switch (status) {
+            case ControllerStatus::Disconnected: statusStr = "Disconnected"; break;
+            case ControllerStatus::Connecting: statusStr = "Connecting"; break;
+            case ControllerStatus::Connected: statusStr = "Connected"; break;
+            case ControllerStatus::Error: statusStr = "Error"; break;
+        }
+        logger.info(QString("  Controller '%1': %2").arg(name, statusStr));
+    });
+    
+    QObject::connect(&manager, &ControllerManager::controllerDataUpdated, [&logger](const QString& controllerName, const QString& command, const QString& value) {
+        logger.debug(QString("  [%1] %2 = %3").arg(controllerName, command, value));
+    });
+    
+    QObject::connect(&manager, &ControllerManager::controllerError, [&logger](const QString& controllerName, const QString& error) {
+        logger.error(QString("  [%1] Error: %2").arg(controllerName, error));
+    });
+    
+    // Load controllers from config
+    manager.loadControllersFromConfig(config);
+    
+    logger.info("");
+    logger.info("Connecting all controllers...");
+    
+    // Connect all
+    manager.connectAll();
+    
+    // Wait for connections
+    QTimer::singleShot(3000, [&]() {
+        logger.info("");
+        logger.info("=== Connection Status ===");
+        logger.info(QString("Enabled controllers: %1").arg(manager.getEnabledControllerCount()));
+        logger.info(QString("Connected controllers: %1").arg(manager.getConnectedControllerCount()));
+        logger.info("");
+        logger.info("Connected:");
+        for (const QString& name : manager.getConnectedControllers()) {
+            logger.info(QString("  ✓ %1").arg(name));
+        }
+        logger.info("");
+        logger.info("Disconnected:");
+        for (const QString& name : manager.getDisconnectedControllers()) {
+            logger.info(QString("  ✗ %1").arg(name));
+        }
+        logger.info("========================");
+        logger.info("");
         
-        // Create controller poller
-        ControllerPoller poller(&mqttClient);
-        poller.setControllerName(ctrl.name);
-        poller.setFastPollInterval(1000);   // 1 second for testing (normally from config)
-        poller.setSlowPollInterval(5000);   // 5 seconds for testing (normally 10s)
-        poller.setStaleDataMultiplier(3);   // Data stale after 3x poll interval
-        
-        // Track connection state
-        bool connectionEstablished = false;
-        int dataUpdateCount = 0;
-        
-        // Connect signals
-        QObject::connect(&mqttClient, &MqttClient::connected, [&logger, &connectionEstablished, &poller]() {
-            logger.info("MQTT: Connection established");
-            connectionEstablished = true;
-        });
-        
-        QObject::connect(&mqttClient, &MqttClient::disconnected, [&logger]() {
-            logger.warning("MQTT: Connection lost");
-        });
-        
-        QObject::connect(&mqttClient, &MqttClient::errorOccurred, [&logger](const QString& error) {
-            logger.error(QString("MQTT: %1").arg(error));
-        });
-        
-        QObject::connect(&poller, &ControllerPoller::dataUpdated, [&logger, &dataUpdateCount](const QString& command, const QString& value) {
-            logger.info(QString("📊 Data updated: %1 = %2").arg(command, value));
-            dataUpdateCount++;
-        });
-        
-        QObject::connect(&poller, &ControllerPoller::dataStale, [&logger](const QString& command) {
-            logger.warning(QString("⚠ Data stale: %1").arg(command));
-        });
-        
-        QObject::connect(&poller, &ControllerPoller::pollError, [&logger](const QString& command, const QString& error) {
-            logger.error(QString("✗ Poll error for %1: %2").arg(command, error));
-        });
-        
-        // Connect to broker
-        mqttClient.connectToHost();
-        
-        // Wait for connection
-        QEventLoop connectionLoop;
-        QTimer connectionTimeout;
-        connectionTimeout.setSingleShot(true);
-        connectionTimeout.setInterval(5000);
-        
-        QObject::connect(&mqttClient, &MqttClient::connected, &connectionLoop, &QEventLoop::quit);
-        QObject::connect(&connectionTimeout, &QTimer::timeout, &connectionLoop, &QEventLoop::quit);
-        
-        connectionTimeout.start();
-        connectionLoop.exec();
-        
-        if (connectionEstablished) {
-            logger.info("");
+        // Start polling if we have connected controllers
+        if (manager.getConnectedControllerCount() > 0) {
             logger.info("Starting polling engine...");
             logger.info("Fast poll: 1s, Slow poll: 5s");
             logger.info("Will run for 15 seconds...");
             logger.info("");
             
-            // Start polling
-            poller.startPolling();
-            
-            // Run for 15 seconds to observe multiple poll cycles
-            QTimer testDuration;
-            testDuration.setSingleShot(true);
-            testDuration.setInterval(15000);
-            
-            QEventLoop testLoop;
-            QObject::connect(&testDuration, &QTimer::timeout, &testLoop, &QEventLoop::quit);
-            
-            testDuration.start();
-            testLoop.exec();
-            
-            // Stop polling
-            poller.stopPolling();
-            
-            logger.info("");
-            logger.info("=== Polling Statistics ===");
-            logger.info(QString("Data updates received: %1").arg(dataUpdateCount));
-            logger.info(QString("Successful polls: %1").arg(poller.successfulPolls()));
-            logger.info(QString("Failed polls: %1").arg(poller.failedPolls()));
-            logger.info("");
-            logger.info("=== Cached Values ===");
-            auto cachedValues = poller.getAllCachedValues();
-            for (auto it = cachedValues.begin(); it != cachedValues.end(); ++it) {
-                QString staleStatus = poller.isDataStale(it.key()) ? " (STALE)" : " (FRESH)";
-                logger.info(QString("%1 = %2 [%3]%4")
-                           .arg(it.key())
-                           .arg(it->value)
-                           .arg(it->timestamp.toString("HH:mm:ss"))
-                           .arg(staleStatus));
-            }
-            logger.info("==========================");
-            
+            manager.startPolling(1000, 5000);
         } else {
-            logger.error("Failed to connect to MQTT broker");
+            logger.warning("No controllers connected - skipping polling test");
             logger.info("Ensure Mosquitto is running: sudo systemctl status mosquitto");
             logger.info("Ensure simulator is running with matching prefix");
         }
+    });
+    
+    // Stop polling and show statistics after 18 seconds (3s connect + 15s poll)
+    QTimer::singleShot(18000, [&]() {
+        manager.stopPolling();
         
-        // Disconnect
-        mqttClient.disconnectFromHost();
+        logger.info("");
+        logger.info("=== Final Statistics ===");
+        logger.info(QString("System status changes: %1").arg(statusChangeCount));
+        logger.info("");
         
-        // Wait a moment for clean disconnect
+        for (const QString& name : manager.getControllerNames()) {
+            logger.info(QString("Controller: %1").arg(name));
+            
+            auto values = manager.getAllControllerValues(name);
+            if (values.isEmpty()) {
+                logger.info("  No data cached");
+            } else {
+                logger.info("  Cached values:");
+                for (auto it = values.begin(); it != values.end(); ++it) {
+                    QString status = it->valid ? "VALID" : "INVALID";
+                    logger.info(QString("    %1 = %2 [%3] (%4)")
+                               .arg(it.key())
+                               .arg(it->value)
+                               .arg(it->timestamp.toString("HH:mm:ss"))
+                               .arg(status));
+                }
+            }
+            logger.info("");
+        }
+        logger.info("=======================");
+        
+        // Disconnect and exit
+        manager.disconnectAll();
         QTimer::singleShot(500, &app, &QGuiApplication::quit);
-    }
+    });
     
     int result = app.exec();
     
     logger.info("");
-    logger.info("Phase 5: Polling Engine - OK");
+    logger.info("Phase 6: Multi-Controller Support - OK");
     
     // Shutdown logger before exit
     logger.shutdown();

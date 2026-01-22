@@ -7,6 +7,7 @@ add_library(observatory-shared STATIC
     Logger.cpp
     MqttClient.cpp
     ControllerPoller.cpp
+    ControllerManager.cpp
 )
 
 target_include_directories(observatory-shared PUBLIC

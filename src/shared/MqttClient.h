@@ -74,6 +74,9 @@ public:
     // Get connection state
     QMqttClient::ClientState state() const;
     
+    // Access underlying client (for simulator)
+    QMqttClient* client() { return m_client; }
+    
 signals:
     void connected();
     void disconnected();

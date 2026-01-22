@@ -1,0 +1,19 @@
+mqtt:
+  broker:
+    host: localhost
+    port: 1883
+    username: ""
+    password: ""
+
+simulator:
+  controller_name: Observatory
+  topic_prefix: OCS
+  commands:
+    - command: ":DZ#"
+      response: "306.640#"
+    - command: ":RS#"
+      response: "OPEN#"
+
+logging:
+  debug_enabled: false
+  max_total_size_mb: 100
