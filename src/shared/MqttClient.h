@@ -83,6 +83,7 @@ signals:
     void errorOccurred(const QString& error);
     void stateChanged(QMqttClient::ClientState state);
     void queueOverflow(const QString& command);
+    void responseReceived(const QString& command, const QString& response, bool isUnsolicited);
     
 private slots:
     void onConnected();

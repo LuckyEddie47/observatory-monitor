@@ -1,43 +1,21 @@
 #ifndef CONTROLLERMANAGER_H
 #define CONTROLLERMANAGER_H
 
-#include <QObject>
-#include <QString>
-#include <QHash>
-#include "MqttClient.h"
-#include "ControllerPoller.h"
+#include "AbstractController.h"
 #include "Config.h"
 
 namespace ObservatoryMonitor {
 
-// Controller status enumeration
-enum class ControllerStatus {
-    Disconnected,   // Not connected to MQTT
-    Connecting,     // Connection in progress
-    Connected,      // Connected and polling
-    Error           // Error state
-};
-
-// Overall system status enumeration
-enum class SystemStatus {
-    AllConnected,       // All enabled controllers connected (GREEN)
-    PartiallyConnected, // Some enabled controllers connected (YELLOW)
-    Disconnected        // No enabled controllers connected (RED)
-};
-
 // Structure to track a single controller
 struct ControllerInfo {
     QString name;
-    QString prefix;
     bool enabled;
-    MqttClient* mqttClient;
-    ControllerPoller* poller;
+    AbstractController* controller;
     ControllerStatus status;
     
     ControllerInfo() 
         : enabled(false)
-        , mqttClient(nullptr)
-        , poller(nullptr)
+        , controller(nullptr)
         , status(ControllerStatus::Disconnected) 
     {}
 };
@@ -72,6 +50,7 @@ public:
     
     // Status queries
     ControllerStatus getControllerStatus(const QString& name) const;
+    QString getControllerType(const QString& name) const;
     SystemStatus getSystemStatus() const;
     QStringList getControllerNames() const;
     QStringList getConnectedControllers() const;

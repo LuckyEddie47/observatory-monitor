@@ -6,8 +6,16 @@ add_library(observatory-shared STATIC
     SimulatorConfig.cpp
     Logger.cpp
     MqttClient.cpp
+    MqttController.cpp
+    MqttController.h
     ControllerPoller.cpp
     ControllerManager.cpp
+    ControllerListModel.cpp
+    ControllerListModel.h
+    ControllerProxy.cpp
+    ControllerProxy.h
+    AbstractController.h
+    Types.h
 )
 
 target_include_directories(observatory-shared PUBLIC

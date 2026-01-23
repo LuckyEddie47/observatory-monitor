@@ -31,14 +31,22 @@ void Config::setDefaults()
     m_logging.debugEnabled = false;
     m_logging.maxTotalSizeMB = 100;
     
-    // Default controller
+    // Default controllers
     m_controllers.clear();
-    ControllerConfig defaultController;
-    defaultController.name = "Observatory";
-    defaultController.type = "Observatory";
-    defaultController.prefix = "OCS";
-    defaultController.enabled = true;
-    m_controllers.append(defaultController);
+    
+    ControllerConfig observatoryController;
+    observatoryController.name = "Observatory";
+    observatoryController.type = "Observatory";
+    observatoryController.prefix = "OCS";
+    observatoryController.enabled = true;
+    m_controllers.append(observatoryController);
+
+    ControllerConfig telescopeController;
+    telescopeController.name = "Telescope";
+    telescopeController.type = "Telescope";
+    telescopeController.prefix = "OnStepX";
+    telescopeController.enabled = true;
+    m_controllers.append(telescopeController);
     
     // Default equipment types
     m_equipmentTypes.clear();

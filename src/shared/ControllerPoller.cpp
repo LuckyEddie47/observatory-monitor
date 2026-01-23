@@ -4,10 +4,11 @@
 
 namespace ObservatoryMonitor {
 
-ControllerPoller::ControllerPoller(MqttClient* mqttClient, QObject* parent)
+ControllerPoller::ControllerPoller(const QString& name, const QString& type, MqttClient* mqttClient, QObject* parent)
     : QObject(parent)
     , m_mqttClient(mqttClient)
-    , m_controllerName("Unknown")
+    , m_controllerName(name)
+    , m_controllerType(type)
     , m_fastPollTimer(new QTimer(this))
     , m_slowPollTimer(new QTimer(this))
     , m_staleCheckTimer(new QTimer(this))
@@ -18,13 +19,8 @@ ControllerPoller::ControllerPoller(MqttClient* mqttClient, QObject* parent)
     , m_failedPolls(0)
     , m_isPolling(false)
 {
-    // Hardcoded fast poll commands (movement parameters)
-    m_fastPollCommands << ":DZ#";  // Dome Azimuth
-    // Future: Add telescope altitude, azimuth when OnStepX is implemented
-    
-    // Hardcoded slow poll commands (status parameters)
-    m_slowPollCommands << ":RS#";  // Roof/Shutter Status
-    // Future: Add weather data, switch states, etc.
+    // Setup default commands
+    setControllerType(type);
     
     // Setup timers
     m_fastPollTimer->setInterval(m_fastPollInterval);
@@ -40,6 +36,7 @@ ControllerPoller::ControllerPoller(MqttClient* mqttClient, QObject* parent)
     // Connect to MQTT client signals
     connect(m_mqttClient, &MqttClient::connected, this, &ControllerPoller::onMqttConnected);
     connect(m_mqttClient, &MqttClient::disconnected, this, &ControllerPoller::onMqttDisconnected);
+    connect(m_mqttClient, &MqttClient::responseReceived, this, &ControllerPoller::onResponseReceived);
 }
 
 ControllerPoller::~ControllerPoller()
@@ -50,6 +47,27 @@ ControllerPoller::~ControllerPoller()
 void ControllerPoller::setControllerName(const QString& name)
 {
     m_controllerName = name;
+}
+
+void ControllerPoller::setControllerType(const QString& type)
+{
+    m_controllerType = type;
+    
+    m_fastPollCommands.clear();
+    m_slowPollCommands.clear();
+    
+    if (type.toLower() == "observatory" || type.toLower() == "ocs") {
+        m_fastPollCommands << ":DZ#";  // Dome Azimuth
+        m_slowPollCommands << ":RS#";  // Roof/Shutter Status
+    } else if (type.toLower() == "telescope" || type.toLower() == "onstepx") {
+        m_fastPollCommands << ":GR#" << ":GD#";  // RA/Dec
+        m_fastPollCommands << ":GZ#" << ":GA#";  // Alt/Az
+        m_slowPollCommands << ":GS#";  // Side of pier
+    } else {
+        // Default minimal set
+        m_fastPollCommands << ":DZ#";
+        m_slowPollCommands << ":RS#";
+    }
 }
 
 void ControllerPoller::setFastPollInterval(int intervalMs)
@@ -72,7 +90,6 @@ void ControllerPoller::setStaleDataMultiplier(int multiplier)
 void ControllerPoller::startPolling()
 {
     if (m_isPolling) {
-        Logger::instance().warning(QString("Poller[%1]: Already polling").arg(m_controllerName));
         return;
     }
     
@@ -83,17 +100,13 @@ void ControllerPoller::startPolling()
     
     m_isPolling = true;
     
-    // Start timers only if connected
     if (m_mqttClient->isConnected()) {
-        // Poll immediately on start
         pollFastCommands();
         pollSlowCommands();
         
         m_fastPollTimer->start();
         m_slowPollTimer->start();
         m_staleCheckTimer->start();
-    } else {
-        Logger::instance().info(QString("Poller[%1]: Waiting for MQTT connection before starting timers").arg(m_controllerName));
     }
 }
 
@@ -122,7 +135,7 @@ CachedValue ControllerPoller::getCachedValue(const QString& command) const
     if (m_cache.contains(command)) {
         return m_cache[command];
     }
-    return CachedValue();  // Invalid value
+    return CachedValue();
 }
 
 QHash<QString, CachedValue> ControllerPoller::getAllCachedValues() const
@@ -133,7 +146,7 @@ QHash<QString, CachedValue> ControllerPoller::getAllCachedValues() const
 bool ControllerPoller::isDataStale(const QString& command) const
 {
     if (!m_cache.contains(command)) {
-        return true;  // No data is stale
+        return true;
     }
     
     const CachedValue& cached = m_cache[command];
@@ -159,14 +172,10 @@ void ControllerPoller::onSlowPollTimer()
 
 void ControllerPoller::onMqttConnected()
 {
-    Logger::instance().info(QString("Poller[%1]: MQTT connected").arg(m_controllerName));
-    
     if (m_isPolling) {
-        // Poll immediately on connection
         pollFastCommands();
         pollSlowCommands();
         
-        // Start timers
         m_fastPollTimer->start();
         m_slowPollTimer->start();
         m_staleCheckTimer->start();
@@ -175,16 +184,22 @@ void ControllerPoller::onMqttConnected()
 
 void ControllerPoller::onMqttDisconnected()
 {
-    Logger::instance().warning(QString("Poller[%1]: MQTT disconnected, stopping timers").arg(m_controllerName));
-    
-    // Stop timers but keep m_isPolling true so we restart when reconnected
     m_fastPollTimer->stop();
     m_slowPollTimer->stop();
     m_staleCheckTimer->stop();
     
-    // Mark all cached data as invalid
     for (auto it = m_cache.begin(); it != m_cache.end(); ++it) {
         it->valid = false;
+    }
+}
+
+void ControllerPoller::onResponseReceived(const QString& command, const QString& response, bool isUnsolicited)
+{
+    if (isUnsolicited) {
+        Logger::instance().debug(QString("Poller[%1]: Handling unsolicited update for %2: %3")
+                                .arg(m_controllerName, command, response));
+        m_cache[command] = CachedValue(response);
+        emit dataUpdated(command, response);
     }
 }
 
@@ -204,35 +219,16 @@ void ControllerPoller::pollSlowCommands()
 
 void ControllerPoller::pollCommand(const QString& command, bool isFastPoll)
 {
-    QString pollType = isFastPoll ? "fast" : "slow";
-    
-    Logger::instance().debug(QString("Poller[%1]: Polling %2 command: %3")
-                            .arg(m_controllerName, pollType, command));
-    
     m_mqttClient->sendCommand(command, [this, command](const QString& cmd, const QString& response, bool success, int errorCode) {
         if (success) {
-            // Update cache
             m_cache[command] = CachedValue(response);
             m_successfulPolls++;
-            
-            Logger::instance().debug(QString("Poller[%1]: %2 = %3")
-                                    .arg(m_controllerName, command, response));
-            
             emit dataUpdated(command, response);
         } else {
             m_failedPolls++;
-            
-            if (errorCode > 0) {
-                Logger::instance().warning(QString("Poller[%1]: Command %2 failed with error code %3")
-                                          .arg(m_controllerName, command).arg(errorCode));
-                emit pollError(command, QString("Error code %1").arg(errorCode));
-            } else {
-                Logger::instance().warning(QString("Poller[%1]: Command %2 failed (timeout or connection issue)")
-                                          .arg(m_controllerName, command));
-                emit pollError(command, "Timeout or connection issue");
-            }
-            
-            // Mark cached value as invalid on error
+            QString errorStr = errorCode > 0 ? QString("Error %1").arg(errorCode) : "Timeout";
+            Logger::instance().debug(QString("Poller[%1]: Poll failed for %2 - %3").arg(m_controllerName, command, errorStr));
+            emit pollError(command, errorStr);
             if (m_cache.contains(command)) {
                 m_cache[command].valid = false;
             }
@@ -243,25 +239,15 @@ void ControllerPoller::pollCommand(const QString& command, bool isFastPoll)
 void ControllerPoller::checkStaleData()
 {
     for (auto it = m_cache.begin(); it != m_cache.end(); ++it) {
-        const QString& command = it.key();
-        
-        if (isDataStale(command)) {
-            Logger::instance().debug(QString("Poller[%1]: Data for %2 is stale")
-                                    .arg(m_controllerName, command));
-            emit dataStale(command);
+        if (isDataStale(it.key())) {
+            emit dataStale(it.key());
         }
     }
 }
 
 int ControllerPoller::getStaleThreshold(const QString& command) const
 {
-    // Determine stale threshold based on whether it's a fast or slow poll command
-    int pollInterval = m_slowPollInterval;  // Default to slow
-    
-    if (m_fastPollCommands.contains(command)) {
-        pollInterval = m_fastPollInterval;
-    }
-    
+    int pollInterval = m_fastPollCommands.contains(command) ? m_fastPollInterval : m_slowPollInterval;
     return pollInterval * m_staleDataMultiplier;
 }
 

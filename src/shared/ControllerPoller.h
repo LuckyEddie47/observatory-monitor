@@ -7,29 +7,21 @@
 #include <QDateTime>
 #include <QTimer>
 #include "MqttClient.h"
+#include "Types.h"
 
 namespace ObservatoryMonitor {
-
-// Structure to hold cached values with metadata
-struct CachedValue {
-    QString value;
-    QDateTime timestamp;
-    bool valid;
-    
-    CachedValue() : valid(false) {}
-    CachedValue(const QString& val) : value(val), timestamp(QDateTime::currentDateTime()), valid(true) {}
-};
 
 class ControllerPoller : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit ControllerPoller(MqttClient* mqttClient, QObject* parent = nullptr);
+    explicit ControllerPoller(const QString& name, const QString& type, MqttClient* mqttClient, QObject* parent = nullptr);
     ~ControllerPoller();
     
     // Configuration
     void setControllerName(const QString& name);
+    void setControllerType(const QString& type);
     void setFastPollInterval(int intervalMs);
     void setSlowPollInterval(int intervalMs);
     void setStaleDataMultiplier(int multiplier);  // Data is stale after multiplier * poll_interval
@@ -58,6 +50,7 @@ private slots:
     void onSlowPollTimer();
     void onMqttConnected();
     void onMqttDisconnected();
+    void onResponseReceived(const QString& command, const QString& response, bool isUnsolicited);
     
 private:
     void pollFastCommands();
@@ -68,6 +61,7 @@ private:
     
     MqttClient* m_mqttClient;
     QString m_controllerName;
+    QString m_controllerType;
     
     QTimer* m_fastPollTimer;
     QTimer* m_slowPollTimer;

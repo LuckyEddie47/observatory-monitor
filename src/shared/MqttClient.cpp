@@ -463,8 +463,11 @@ void MqttClient::parseResponse(const QString& response)
     
     if (matchingKey.isEmpty()) {
         Logger::instance().debug(QString("MQTT: Received response for non-pending command: %1").arg(command));
+        emit responseReceived(command, responseValue, true);
         return;
     }
+    
+    emit responseReceived(command, responseValue, false);
     
     PendingCommand pending = m_pendingCommands.take(matchingKey);
     
@@ -523,7 +526,7 @@ void MqttClient::handleCommandTimeout(const QString& commandKey)
     
     PendingCommand pending = m_pendingCommands.take(commandKey);
     
-    Logger::instance().warning(QString("MQTT: Command '%1' timed out after %2 ms").arg(pending.command).arg(m_commandTimeout));
+    Logger::instance().debug(QString("MQTT: Command '%1' timed out after %2 ms").arg(pending.command).arg(m_commandTimeout));
     
     // Timer will be deleted automatically when command is removed
     if (pending.timeoutTimer) {

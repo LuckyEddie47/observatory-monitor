@@ -23,6 +23,9 @@ find_package(Qt6 REQUIRED COMPONENTS
     Mqtt
 )
 
+# Qt Policies
+qt_policy(SET QTP0001 NEW)
+
 # Find yaml-cpp
 find_package(yaml-cpp REQUIRED)
 

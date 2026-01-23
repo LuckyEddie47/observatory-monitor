@@ -23,6 +23,10 @@ public:
         : QObject(parent)
         , m_config(config)
         , m_client(new QMqttClient(this))
+        , m_azimuth(0.0)
+        , m_azimuthIncreasing(true)
+        , m_altitude(0.0)
+        , m_altitudeIncreasing(true)
     {
         // Setup MQTT client
         m_client->setHostname(m_config.broker().host);
@@ -37,6 +41,11 @@ public:
         connect(m_client, &QMqttClient::connected, this, &MqttSimulator::onConnected);
         connect(m_client, &QMqttClient::disconnected, this, &MqttSimulator::onDisconnected);
         connect(m_client, &QMqttClient::errorChanged, this, &MqttSimulator::onErrorChanged);
+
+        // Update movement timer: 100ms
+        m_updateTimer = new QTimer(this);
+        connect(m_updateTimer, &QTimer::timeout, this, &MqttSimulator::updateMovement);
+        m_updateTimer->start(100);
     }
     
     void start()
@@ -46,6 +55,39 @@ public:
     }
     
 private slots:
+    void updateMovement()
+    {
+        // Update Azimuth (0-360)
+        if (m_azimuthIncreasing) {
+            m_azimuth += 0.5;
+            if (m_azimuth >= 360.0) {
+                m_azimuth = 360.0;
+                m_azimuthIncreasing = false;
+            }
+        } else {
+            m_azimuth -= 0.5;
+            if (m_azimuth <= 0.0) {
+                m_azimuth = 0.0;
+                m_azimuthIncreasing = true;
+            }
+        }
+
+        // Update Altitude (0-90)
+        if (m_altitudeIncreasing) {
+            m_altitude += 0.2;
+            if (m_altitude >= 90.0) {
+                m_altitude = 90.0;
+                m_altitudeIncreasing = false;
+            }
+        } else {
+            m_altitude -= 0.2;
+            if (m_altitude <= 0.0) {
+                m_altitude = 0.0;
+                m_altitudeIncreasing = true;
+            }
+        }
+    }
+
     void onConnected()
     {
         Logger::instance().info(QString("Simulator: Connected to %1:%2")
@@ -91,11 +133,38 @@ private slots:
         
         Logger::instance().debug(QString("Simulator: Received command on %1/cmd: %2").arg(prefix, command));
         
+        // Special case for dynamic values
+        if (command == ":DZ#" || command == ":GZ#") {
+            QString responseValue = QString("%1#").arg(m_azimuth, 0, 'f', 3);
+            QString response = QString("Received: %1, Response: %2, Source: MQTT").arg(command, responseValue);
+            sendResponse(prefix, command, response);
+            return;
+        }
+
+        if (command == ":GA#") {
+            QString responseValue = QString("%1#").arg(m_altitude, 0, 'f', 3);
+            QString response = QString("Received: :GA#, Response: %1, Source: MQTT").arg(responseValue);
+            sendResponse(prefix, command, response);
+            return;
+        }
+
         // Find response for this command
         const CommandResponse* cmdResp = m_config.findResponse(prefix, command);
         
         if (!cmdResp) {
-            Logger::instance().warning(QString("Simulator: No configured response for command: %1").arg(command));
+            // Default response to prevent timeouts for common commands
+            QString responseValue;
+            if (command == ":RS#") responseValue = "0#"; // Ready
+            else if (command == ":GR#") responseValue = "12:34:56#";
+            else if (command == ":GD#") responseValue = "+45*30'00#";
+            else if (command == ":GS#") responseValue = "0#";
+            else {
+                Logger::instance().warning(QString("Simulator: No configured response for command: %1").arg(command));
+                return;
+            }
+
+            QString defaultResponse = QString("Received: %1, Response: %2, Source: MQTT").arg(command, responseValue);
+            sendResponse(prefix, command, defaultResponse);
             return;
         }
         
@@ -116,10 +185,16 @@ private slots:
             return;
         }
         
-        QString echoTopic = prefix + "/echo";
-        QByteArray message = response.toUtf8();
+        // Ensure the response follows the expected OCS format if it doesn't already
+        QString fullResponse = response;
+        if (!response.startsWith("Received:")) {
+            fullResponse = QString("Received: %1, Response: %2, Source: MQTT").arg(command, response);
+        }
         
-        Logger::instance().debug(QString("Simulator: Publishing to %1: %2").arg(echoTopic, response));
+        QString echoTopic = prefix + "/echo";
+        QByteArray message = fullResponse.toUtf8();
+        
+        Logger::instance().debug(QString("Simulator: Publishing to %1: %2").arg(echoTopic, fullResponse));
         
         qint64 msgId = m_client->publish(echoTopic, message, 0);  // QoS 0 for echo
         
@@ -132,6 +207,11 @@ private:
     SimulatorConfig m_config;
     QMqttClient* m_client;
     QList<QMqttSubscription*> m_subscriptions;
+    QTimer* m_updateTimer;
+    double m_azimuth;
+    bool m_azimuthIncreasing;
+    double m_altitude;
+    bool m_altitudeIncreasing;
 };
 
 int main(int argc, char *argv[])
