@@ -31,6 +31,13 @@ void Config::setDefaults()
     m_logging.debugEnabled = false;
     m_logging.maxTotalSizeMB = 100;
     
+    // GUI defaults
+    m_gui = GuiConfig();
+    m_gui.theme = "Dark";
+    m_gui.showGauges = true;
+    m_gui.show3DView = true;
+    m_gui.sidebarWidth = 280;
+    
     // Default controllers
     m_controllers.clear();
     
@@ -140,6 +147,15 @@ bool Config::loadFromFile(const QString& filePath, QString& errorMessage)
             if (logging["max_total_size_mb"]) m_logging.maxTotalSizeMB = logging["max_total_size_mb"].as<int>();
         }
         
+        // Parse GUI settings
+        if (config["gui"]) {
+            YAML::Node gui = config["gui"];
+            if (gui["theme"]) m_gui.theme = QString::fromStdString(gui["theme"].as<std::string>());
+            if (gui["show_gauges"]) m_gui.showGauges = gui["show_gauges"].as<bool>();
+            if (gui["show_3d_view"]) m_gui.show3DView = gui["show_3d_view"].as<bool>();
+            if (gui["sidebar_width"]) m_gui.sidebarWidth = gui["sidebar_width"].as<int>();
+        }
+        
         return true;
         
     } catch (const YAML::ParserException& e) {
@@ -232,6 +248,15 @@ bool Config::saveToFile(const QString& filePath, QString& errorMessage)
         out << YAML::Key << "max_total_size_mb" << YAML::Value << m_logging.maxTotalSizeMB;
         out << YAML::EndMap;
         
+        // GUI section
+        out << YAML::Key << "gui";
+        out << YAML::Value << YAML::BeginMap;
+        out << YAML::Key << "theme" << YAML::Value << m_gui.theme.toStdString();
+        out << YAML::Key << "show_gauges" << YAML::Value << m_gui.showGauges;
+        out << YAML::Key << "show_3d_view" << YAML::Value << m_gui.show3DView;
+        out << YAML::Key << "sidebar_width" << YAML::Value << m_gui.sidebarWidth;
+        out << YAML::EndMap;
+        
         out << YAML::EndMap;
         
         // Write to file
@@ -279,6 +304,11 @@ bool Config::validate(QString& errorMessage) const
     QString logError;
     if (!validateLogging(logError)) {
         errors << logError;
+    }
+    
+    QString guiError;
+    if (!validateGui(guiError)) {
+        errors << guiError;
     }
     
     if (!errors.isEmpty()) {
@@ -424,4 +454,26 @@ if (!errors.isEmpty()) {
 
 return true;
 }
+bool Config::validateGui(QString& errorMessage) const
+{
+    QStringList errors;
+    
+    if (m_gui.theme != "Dark" && m_gui.theme != "Light" && m_gui.theme != "System") {
+        errors << QString("Invalid GUI theme: '%1' (gui.theme). Valid options: Dark, Light, System")
+                         .arg(m_gui.theme);
+    }
+    
+    if (m_gui.sidebarWidth < 100 || m_gui.sidebarWidth > 1000) {
+        errors << QString("GUI sidebar width is out of range: %1 (gui.sidebar_width). Valid range: 100-1000")
+                         .arg(m_gui.sidebarWidth);
+    }
+    
+    if (!errors.isEmpty()) {
+        errorMessage = "GUI configuration errors:\n" + errors.join("\n");
+        return false;
+    }
+    
+    return true;
+}
+
 } // namespace ObservatoryMonitor

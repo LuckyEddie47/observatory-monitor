@@ -30,6 +30,7 @@ public:
     
     // Configuration
     void loadControllersFromConfig(const Config& config);
+    void updateBrokerConfig(const BrokerConfig& broker, double timeout, int reconnectInterval);
     
     // Controller management
     void addController(const ControllerConfig& config, const BrokerConfig& broker, double timeout, int reconnectInterval);
@@ -50,6 +51,7 @@ public:
     
     // Status queries
     ControllerStatus getControllerStatus(const QString& name) const;
+    bool isControllerEnabled(const QString& name) const;
     QString getControllerType(const QString& name) const;
     SystemStatus getSystemStatus() const;
     QStringList getControllerNames() const;
@@ -64,6 +66,7 @@ public:
     
 signals:
     void controllerStatusChanged(const QString& name, ControllerStatus status);
+    void controllerEnabledChanged(const QString& name, bool enabled);
     void systemStatusChanged(SystemStatus status);
     void controllerDataUpdated(const QString& controllerName, const QString& command, const QString& value);
     void controllerError(const QString& controllerName, const QString& error);

@@ -40,7 +40,7 @@ MqttClient::~MqttClient()
     for (auto it = m_pendingCommands.begin(); it != m_pendingCommands.end(); ++it) {
         if (it->timeoutTimer) {
             it->timeoutTimer->stop();
-            delete it->timeoutTimer;
+            it->timeoutTimer->deleteLater();
         }
     }
     m_pendingCommands.clear();
@@ -244,7 +244,7 @@ void MqttClient::onDisconnected()
     for (auto it = m_pendingCommands.begin(); it != m_pendingCommands.end(); ++it) {
         if (it->timeoutTimer) {
             it->timeoutTimer->stop();
-            delete it->timeoutTimer;
+            it->timeoutTimer->deleteLater();
         }
         if (it->callback) {
             it->callback(it->command, "", false, -1);
@@ -474,7 +474,7 @@ void MqttClient::parseResponse(const QString& response)
     // Stop timeout timer
     if (pending.timeoutTimer) {
         pending.timeoutTimer->stop();
-        delete pending.timeoutTimer;
+        pending.timeoutTimer->deleteLater();
     }
     
     // Calculate response time
@@ -530,7 +530,7 @@ void MqttClient::handleCommandTimeout(const QString& commandKey)
     
     // Timer will be deleted automatically when command is removed
     if (pending.timeoutTimer) {
-        delete pending.timeoutTimer;
+        pending.timeoutTimer->deleteLater();
     }
     
     // Call callback with failure

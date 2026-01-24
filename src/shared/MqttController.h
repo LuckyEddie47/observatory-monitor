@@ -24,6 +24,8 @@ public:
 
     void sendCommand(const QString& command, ResponseCallback callback) override;
 
+    void updateConfig(const BrokerConfig& broker, double timeout, int reconnectInterval);
+
     void startPolling(int fastPollMs, int slowPollMs);
     void stopPolling();
 

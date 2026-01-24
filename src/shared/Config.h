@@ -41,6 +41,21 @@ struct LoggingConfig {
     LoggingConfig() : debugEnabled(false), maxTotalSizeMB(100) {}
 };
 
+// Structure for GUI configuration
+struct GuiConfig {
+    QString theme;
+    bool showGauges;
+    bool show3DView;
+    int sidebarWidth;
+    
+    GuiConfig() 
+        : theme("Dark")
+        , showGauges(true)
+        , show3DView(true)
+        , sidebarWidth(280) 
+    {}
+};
+
 // Main configuration class
 class Config {
 public:
@@ -52,6 +67,7 @@ public:
     bool loadFromFile(const QString& filePath, QString& errorMessage);
     
     // Save current configuration to file
+    // Returns true on success, false on error
     bool saveToFile(const QString& filePath, QString& errorMessage);
     
     // Generate default configuration
@@ -69,14 +85,17 @@ public:
     QList<ControllerConfig> controllers() const { return m_controllers; }
     QList<EquipmentType> equipmentTypes() const { return m_equipmentTypes; }
     LoggingConfig logging() const { return m_logging; }
+    GuiConfig gui() const { return m_gui; }
     
     // Setters (for testing)
     void setBroker(const BrokerConfig& broker) { m_broker = broker; }
     void setMqttTimeout(double timeout) { m_mqttTimeout = timeout; }
     void setReconnectInterval(int interval) { m_reconnectInterval = interval; }
+    void setControllers(const QList<ControllerConfig>& controllers) { m_controllers = controllers; }
     void addController(const ControllerConfig& controller) { m_controllers.append(controller); }
     void addEquipmentType(const EquipmentType& type) { m_equipmentTypes.append(type); }
     void setLogging(const LoggingConfig& logging) { m_logging = logging; }
+    void setGui(const GuiConfig& gui) { m_gui = gui; }
     
 private:
     BrokerConfig m_broker;
@@ -85,12 +104,14 @@ private:
     QList<ControllerConfig> m_controllers;
     QList<EquipmentType> m_equipmentTypes;
     LoggingConfig m_logging;
+    GuiConfig m_gui;
     
     // Helper methods
     bool validateBroker(QString& errorMessage) const;
     bool validateControllers(QString& errorMessage) const;
     bool validateEquipmentTypes(QString& errorMessage) const;
     bool validateLogging(QString& errorMessage) const;
+    bool validateGui(QString& errorMessage) const;
 };
 
 } // namespace ObservatoryMonitor

@@ -38,6 +38,17 @@ void ControllerManager::loadControllersFromConfig(const Config& config)
     }
 }
 
+void ControllerManager::updateBrokerConfig(const BrokerConfig& broker, double timeout, int reconnectInterval)
+{
+    Logger::instance().info("ControllerManager: Updating broker configuration for all controllers");
+    for (auto it = m_controllers.begin(); it != m_controllers.end(); ++it) {
+        MqttController* mqttCtrl = qobject_cast<MqttController*>(it.value().controller);
+        if (mqttCtrl) {
+            mqttCtrl->updateConfig(broker, timeout, reconnectInterval);
+        }
+    }
+}
+
 void ControllerManager::addController(const ControllerConfig& config, const BrokerConfig& broker, double timeout, int reconnectInterval)
 {
     if (m_controllers.contains(config.name)) {
@@ -99,6 +110,7 @@ void ControllerManager::enableController(const QString& name, bool enable)
         info.controller->disconnect();
     }
     
+    emit controllerEnabledChanged(name, enable);
     updateSystemStatus();
 }
 
@@ -170,6 +182,11 @@ void ControllerManager::stopControllerPolling(const QString& name)
 ControllerStatus ControllerManager::getControllerStatus(const QString& name) const
 {
     return m_controllers.contains(name) ? m_controllers[name].status : ControllerStatus::Disconnected;
+}
+
+bool ControllerManager::isControllerEnabled(const QString& name) const
+{
+    return m_controllers.contains(name) ? m_controllers[name].enabled : false;
 }
 
 QString ControllerManager::getControllerType(const QString& name) const

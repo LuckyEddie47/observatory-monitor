@@ -38,7 +38,7 @@ void TestConfig::testDefaultConfig()
     QCOMPARE(config.broker().port, 1883);
     QCOMPARE(config.mqttTimeout(), 2.0);
     QCOMPARE(config.reconnectInterval(), 10);
-    QCOMPARE(config.controllers().size(), 1);
+    QCOMPARE(config.controllers().size(), 2);
     QCOMPARE(config.equipmentTypes().size(), 4);
     
     QString errorMessage;

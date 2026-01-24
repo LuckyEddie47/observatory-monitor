@@ -17,6 +17,8 @@ class ControllerProxy : public QObject
     Q_PROPERTY(double ra READ ra NOTIFY raChanged)
     Q_PROPERTY(double dec READ dec NOTIFY decChanged)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
+    Q_PROPERTY(QString shutterStatus READ shutterStatus NOTIFY shutterStatusChanged)
+    Q_PROPERTY(QString sideOfPier READ sideOfPier NOTIFY sideOfPierChanged)
 
 public:
     explicit ControllerProxy(const QString& name, ControllerManager* manager, QObject* parent = nullptr);
@@ -27,6 +29,8 @@ public:
     double ra() const { return m_ra; }
     double dec() const { return m_dec; }
     QString status() const;
+    QString shutterStatus() const { return m_shutterStatus; }
+    QString sideOfPier() const { return m_sideOfPier; }
 
 signals:
     void azimuthChanged();
@@ -34,6 +38,8 @@ signals:
     void raChanged();
     void decChanged();
     void statusChanged();
+    void shutterStatusChanged();
+    void sideOfPierChanged();
 
 private slots:
     void onDataUpdated(const QString& controllerName, const QString& command, const QString& value);
@@ -49,6 +55,8 @@ private:
     double m_altitude;
     double m_ra;
     double m_dec;
+    QString m_shutterStatus;
+    QString m_sideOfPier;
 };
 
 } // namespace ObservatoryMonitor

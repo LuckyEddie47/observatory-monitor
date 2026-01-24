@@ -35,10 +35,10 @@ The project was developed in stages (Phases 1-6) as a Qt6/C++ application to mon
 ### 3. 3D Visualization (Qt Quick 3D)
 - [x] Set up the 3D scene with basic primitives.
 - [x] Implement the **Physical Relationship System** for Azimuth/Altitude rotations.
-- [ ] Integrate Onshape-exported glTF models.
+- [x] Integrate Onshape-exported glTF models.
 
 ### 4. Graphical Status Panels
-- [ ] Design and implement custom QML gauges (circular, level, text).
+- [x] Design and implement custom QML gauges (circular, level, text).
 - [ ] Create a system for user-configurable panel backgrounds and layouts.
 
 ## Technical Debt to Watch

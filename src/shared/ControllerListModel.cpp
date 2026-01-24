@@ -36,14 +36,29 @@ QVariant ControllerListModel::data(const QModelIndex& index, int role) const
     case StatusStringRole:
         return statusToString(m_manager->getControllerStatus(name));
     case IsEnabledRole:
-        // We don't have a direct getControllerEnabled in manager yet, 
-        // but we can assume if it's in the list it's at least configured.
-        return true; 
+        return m_manager->isControllerEnabled(name);
     case TypeRole:
         return m_manager->getControllerType(name);
     default:
         return QVariant();
     }
+}
+
+bool ControllerListModel::setData(const QModelIndex& index, const QVariant& value, int role)
+{
+    if (!index.isValid() || index.row() >= m_controllerNames.count())
+        return false;
+
+    if (role == IsEnabledRole) {
+        const QString& name = m_controllerNames.at(index.row());
+        bool enabled = value.toBool();
+        if (m_manager->isControllerEnabled(name) != enabled) {
+            m_manager->enableController(name, enabled);
+            emit dataChanged(index, index, {IsEnabledRole});
+            return true;
+        }
+    }
+    return false;
 }
 
 QHash<int, QByteArray> ControllerListModel::roleNames() const

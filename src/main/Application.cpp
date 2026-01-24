@@ -50,6 +50,123 @@ ControllerProxy* Application::getController(const QString& name)
     return nullptr;
 }
 
+void Application::saveConfig()
+{
+    QString error;
+    if (!m_config.saveToFile(m_configPath, error)) {
+        Logger::instance().error("Failed to save configuration: " + error);
+    } else {
+        Logger::instance().info("Configuration saved successfully to " + m_configPath);
+    }
+}
+
+void Application::setTheme(const QString& theme)
+{
+    if (m_config.gui().theme != theme) {
+        GuiConfig gui = m_config.gui();
+        gui.theme = theme;
+        m_config.setGui(gui);
+        emit themeChanged();
+    }
+}
+
+void Application::setShowGauges(bool show)
+{
+    if (m_config.gui().showGauges != show) {
+        GuiConfig gui = m_config.gui();
+        gui.showGauges = show;
+        m_config.setGui(gui);
+        emit showGaugesChanged();
+    }
+}
+
+void Application::setShow3DView(bool show)
+{
+    if (m_config.gui().show3DView != show) {
+        GuiConfig gui = m_config.gui();
+        gui.show3DView = show;
+        m_config.setGui(gui);
+        emit show3DViewChanged();
+    }
+}
+
+void Application::setSidebarWidth(int width)
+{
+    if (m_config.gui().sidebarWidth != width) {
+        GuiConfig gui = m_config.gui();
+        gui.sidebarWidth = width;
+        m_config.setGui(gui);
+        emit sidebarWidthChanged();
+    }
+}
+
+void Application::setMqttHost(const QString& host)
+{
+    if (m_config.broker().host != host) {
+        BrokerConfig broker = m_config.broker();
+        broker.host = host;
+        m_config.setBroker(broker);
+        emit mqttHostChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::setMqttPort(int port)
+{
+    if (m_config.broker().port != port) {
+        BrokerConfig broker = m_config.broker();
+        broker.port = port;
+        m_config.setBroker(broker);
+        emit mqttPortChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::setMqttUsername(const QString& username)
+{
+    if (m_config.broker().username != username) {
+        BrokerConfig broker = m_config.broker();
+        broker.username = username;
+        m_config.setBroker(broker);
+        emit mqttUsernameChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::setMqttPassword(const QString& password)
+{
+    if (m_config.broker().password != password) {
+        BrokerConfig broker = m_config.broker();
+        broker.password = password;
+        m_config.setBroker(broker);
+        emit mqttPasswordChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::setMqttTimeout(double timeout)
+{
+    if (m_config.mqttTimeout() != timeout) {
+        m_config.setMqttTimeout(timeout);
+        emit mqttTimeoutChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::setReconnectInterval(int interval)
+{
+    if (m_config.reconnectInterval() != interval) {
+        m_config.setReconnectInterval(interval);
+        emit reconnectIntervalChanged();
+        updateBrokerConfig();
+    }
+}
+
+void Application::updateBrokerConfig()
+{
+    m_controllerManager.updateBrokerConfig(m_config.broker(), m_config.mqttTimeout(), m_config.reconnectInterval());
+}
+
 bool Application::initialize()
 {
     if (!setupPaths()) return false;
@@ -176,6 +293,18 @@ void Application::setupControllers()
 
     connect(&m_controllerManager, &ControllerManager::controllerStatusChanged, this, [](const QString& name, ControllerStatus status) {
         Logger::instance().info(QString("Controller '%1' status changed").arg(name));
+    });
+
+    connect(&m_controllerManager, &ControllerManager::controllerEnabledChanged, this, [this](const QString& name, bool enabled) {
+        QList<ControllerConfig> ctrls = m_config.controllers();
+        for (int i = 0; i < ctrls.size(); ++i) {
+            if (ctrls[i].name == name) {
+                ctrls[i].enabled = enabled;
+                break;
+            }
+        }
+        m_config.setControllers(ctrls);
+        saveConfig();
     });
 
     connect(&m_controllerManager, &ControllerManager::controllerDataUpdated, this, [](const QString& name, const QString& command, const QString& value) {

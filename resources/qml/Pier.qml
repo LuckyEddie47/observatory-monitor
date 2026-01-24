@@ -6,12 +6,10 @@ Node {
 
     // Resources
     PrincipledMaterial {
-        id: node0_701961_0_701961_0_701961_0_000000_0_000000_material
-        objectName: "0.701961_0.701961_0.701961_0.000000_0.000000"
-        baseColor: "#ffb3b3b3"
-        roughness: 1
+        id: pierMaterial
+        baseColor: "#333333"
+        roughness: 0.8
         cullMode: PrincipledMaterial.NoCulling
-        alphaMode: PrincipledMaterial.Opaque
     }
 
     // Nodes:
@@ -20,10 +18,10 @@ Node {
         objectName: "Pier"
         source: "meshes/pier_mesh.mesh"
         materials: [
-            node0_701961_0_701961_0_701961_0_000000_0_000000_material,
-            node0_701961_0_701961_0_701961_0_000000_0_000000_material,
-            node0_701961_0_701961_0_701961_0_000000_0_000000_material,
-            node0_701961_0_701961_0_701961_0_000000_0_000000_material
+            pierMaterial,
+            pierMaterial,
+            pierMaterial,
+            pierMaterial
         ]
     }
 

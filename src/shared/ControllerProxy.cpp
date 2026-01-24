@@ -11,6 +11,8 @@ ControllerProxy::ControllerProxy(const QString& name, ControllerManager* manager
     , m_altitude(0.0)
     , m_ra(0.0)
     , m_dec(0.0)
+    , m_shutterStatus("Unknown")
+    , m_sideOfPier("Unknown")
 {
     if (m_manager) {
         connect(m_manager, &ControllerManager::controllerDataUpdated,
@@ -62,6 +64,30 @@ void ControllerProxy::onDataUpdated(const QString& controllerName, const QString
         if (val != m_dec) {
             m_dec = val;
             emit decChanged();
+        }
+    } else if (command == ":RS#") {
+        QString status = "Unknown";
+        QString val = value.toUpper();
+        if (val.startsWith('0') || val.contains("OPEN")) status = "Open";
+        else if (val.startsWith('1') || val.contains("CLOSED")) status = "Closed";
+        else if (val.startsWith('2') || val.contains("OPENING")) status = "Opening";
+        else if (val.startsWith('3') || val.contains("CLOSING")) status = "Closing";
+        else if (val.startsWith('4') || val.contains("STOPPED")) status = "Stopped";
+        else if (val.startsWith('5') || val.contains("ERROR")) status = "Error";
+        
+        if (status != m_shutterStatus) {
+            m_shutterStatus = status;
+            emit shutterStatusChanged();
+        }
+    } else if (command == ":GS#") {
+        QString side = "Unknown";
+        QString val = value.toUpper();
+        if (val.contains('E') || val.startsWith('0')) side = "East";
+        else if (val.contains('W') || val.startsWith('1')) side = "West";
+        
+        if (side != m_sideOfPier) {
+            m_sideOfPier = side;
+            emit sideOfPierChanged();
         }
     }
 }

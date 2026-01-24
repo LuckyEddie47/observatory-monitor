@@ -14,6 +14,8 @@ qt_add_qml_module(observatory-monitor
         ../../resources/qml/Pier.qml
         ../../resources/qml/MountAzimuth.qml
         ../../resources/qml/Tube.qml
+        ../../resources/qml/CircularGauge.qml
+        ../../resources/qml/LevelGauge.qml
     RESOURCES
         ../../resources/models/Dome.gltf
         ../../resources/models/MountAzimuth.gltf

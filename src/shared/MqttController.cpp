@@ -51,6 +51,22 @@ void MqttController::sendCommand(const QString& command, ResponseCallback callba
     m_mqttClient->sendCommand(command, callback);
 }
 
+void MqttController::updateConfig(const BrokerConfig& broker, double timeout, int reconnectInterval)
+{
+    m_mqttClient->setHostname(broker.host);
+    m_mqttClient->setPort(static_cast<quint16>(broker.port));
+    m_mqttClient->setUsername(broker.username);
+    m_mqttClient->setPassword(broker.password);
+    m_mqttClient->setCommandTimeout(static_cast<int>(timeout * 1000));
+    m_mqttClient->setReconnectInterval(reconnectInterval * 1000);
+
+    // If we are currently connected or connecting, we should reconnect with new settings
+    if (m_status == ControllerStatus::Connected || m_status == ControllerStatus::Connecting) {
+        disconnect();
+        connect();
+    }
+}
+
 void MqttController::startPolling(int fastPollMs, int slowPollMs)
 {
     m_poller->setFastPollInterval(fastPollMs);

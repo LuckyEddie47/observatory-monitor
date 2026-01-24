@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QQueue>
 #include <QHash>
+#include <QPointer>
 #include <QMqttClient>
 #include <QMqttSubscription>
 #include <QMqttMessage>
@@ -30,7 +31,7 @@ enum class CommandState {
 struct PendingCommand {
     QString command;
     ResponseCallback callback;
-    QTimer* timeoutTimer;
+    QPointer<QTimer> timeoutTimer;
     qint64 queuedTime;
     qint64 sentTime;
     CommandState state;
