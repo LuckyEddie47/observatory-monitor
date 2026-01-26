@@ -20,6 +20,8 @@ class ControllerProxy : public QObject
     Q_PROPERTY(QString shutterStatus READ shutterStatus NOTIFY shutterStatusChanged)
     Q_PROPERTY(QString sideOfPier READ sideOfPier NOTIFY sideOfPierChanged)
 
+    Q_INVOKABLE QVariant getProperty(const QString& name) const;
+
 public:
     explicit ControllerProxy(const QString& name, ControllerManager* manager, QObject* parent = nullptr);
 
@@ -40,6 +42,7 @@ signals:
     void statusChanged();
     void shutterStatusChanged();
     void sideOfPierChanged();
+    void propertyChanged(const QString& name, const QVariant& value);
 
 private slots:
     void onDataUpdated(const QString& controllerName, const QString& command, const QString& value);
@@ -57,6 +60,7 @@ private:
     double m_dec;
     QString m_shutterStatus;
     QString m_sideOfPier;
+    QHash<QString, QVariant> m_properties;
 };
 
 } // namespace ObservatoryMonitor

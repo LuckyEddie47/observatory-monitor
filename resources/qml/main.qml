@@ -12,6 +12,45 @@ ApplicationWindow {
 
     property var observatoryController: app.getController("Observatory")
     property var telescopeController: app.getController("Telescope")
+    
+    // Validation error banner
+    Rectangle {
+        id: validationBanner
+        width: parent.width
+        height: (layout && !layout.isValid) ? 40 : 0
+        color: "#e74c3c"
+        visible: height > 0
+        z: 999
+        anchors.top: parent.header.bottom
+        
+        Behavior on height { NumberAnimation { duration: 200 } }
+        
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            
+            Label {
+                text: "⚠ " + (layout ? layout.validationError : "")
+                color: "white"
+                font.bold: true
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+            
+            Button {
+                text: "Reset to Defaults"
+                flat: true
+                palette.buttonText: "white"
+                onClicked: {
+                    layout.setDefaults()
+                    layout.validate(caps, "")
+                }
+            }
+        }
+    }
+    
+    property var selectedSceneNode: null
 
     header: ToolBar {
         RowLayout {
@@ -24,6 +63,21 @@ ApplicationWindow {
                 Layout.leftMargin: 10
             }
             Item { Layout.fillWidth: true }
+            ToolButton {
+                text: app.showDashboard ? qsTr("3D View") : qsTr("Dashboard")
+                onClicked: app.showDashboard = !app.showDashboard
+            }
+            ToolButton {
+                visible: !app.showDashboard
+                text: app.editorMode ? qsTr("Exit Editor") : qsTr("Edit Scene")
+                onClicked: {
+                    app.editorMode = !app.editorMode
+                    if (!app.editorMode) {
+                        selectedSceneNode = null
+                        app.saveLayout()
+                    }
+                }
+            }
             ToolButton {
                 text: qsTr("Settings")
                 onClicked: settingsDialog.open()
@@ -106,6 +160,15 @@ ApplicationWindow {
                                 value: app.sidebarWidth
                             }
                             Label { text: Math.round(sidebarWidthSlider.value) + "px" }
+                        }
+
+                        RowLayout {
+                            Label { text: qsTr("Sidebar Position:") }
+                            ComboBox {
+                                id: sidebarPositionCombo
+                                model: ["Left", "Right"]
+                                currentIndex: model.indexOf(app.sidebarPosition)
+                            }
                         }
                     }
                 }
@@ -273,6 +336,7 @@ ApplicationWindow {
             app.showGauges = showGaugesCheck.checked
             app.show3DView = show3DViewCheck.checked
             app.sidebarWidth = Math.round(sidebarWidthSlider.value)
+            app.sidebarPosition = sidebarPositionCombo.currentText
 
             // Save Network settings
             app.mqttHost = mqttHostField.text
@@ -289,6 +353,7 @@ ApplicationWindow {
     RowLayout {
         anchors.fill: parent
         spacing: 0
+        layoutDirection: app.sidebarPosition === "Right" ? Qt.RightToLeft : Qt.LeftToRight
 
         // Sidebar
         Rectangle {
@@ -541,11 +606,16 @@ ApplicationWindow {
             }
         }
 
-        // 3D View
-        View3D {
+        // Main Content Area
+        StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: app.show3DView
+            currentIndex: app.showDashboard ? 1 : 0
+
+            // 3D View
+            View3D {
+                id: view3D
+                visible: app.show3DView && !app.showDashboard
 
             environment: SceneEnvironment {
                 clearColor: app.theme === "Dark" ? "#111111" : "#eeeeee"
@@ -583,42 +653,10 @@ ApplicationWindow {
                 // Placeholder for the observatory/telescope
                 Node {
                     id: observatoryNode
-                    scale: Qt.vector3d(100, 100, 100) // Onshape usually exports in mm, View3D uses meters
+                    scale: Qt.vector3d(100, 100, 100)
 
-                    // Rotating Dome
-                    PhysicalRelationship {
-                        type: PhysicalRelationship.Rotation
-                        axis: Qt.vector3d(0, 1, 0)
-                        value: observatoryController ? -observatoryController.azimuth : 0
-                        Dome {
-                            id: domeComponent
-                        }
-                    }
-
-                    // Stationary Pier
-                    Pier {
-                        id: pierComponent
-                    }
-
-                    // Mount Base (Rotating in Azimuth)
-                    PhysicalRelationship {
-                        type: PhysicalRelationship.Rotation
-                        axis: Qt.vector3d(0, 1, 0)
-                        value: telescopeController ? -telescopeController.azimuth : 0
-
-                        MountAzimuth {
-                            id: mountAzimuthComponent
-
-                            // Telescope Tube (Rotating in Altitude)
-                            PhysicalRelationship {
-                                type: PhysicalRelationship.Rotation
-                                axis: Qt.vector3d(1, 0, 0)
-                                value: telescopeController ? -telescopeController.altitude : 0
-                                Tube {
-                                    id: tubeComponent
-                                }
-                            }
-                        }
+                    SceneComposer {
+                        sceneNodes: layout ? layout.sceneNodes : []
                     }
                 }
             }
@@ -643,21 +681,64 @@ ApplicationWindow {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 property real lastX: 0
                 property real lastY: 0
+                property bool moved: false
 
                 onPressed: (mouse) => {
                     lastX = mouse.x
                     lastY = mouse.y
+                    moved = false
+                }
+
+                onClicked: (mouse) => {
+                    if (!moved && app.editorMode && mouse.button === Qt.LeftButton) {
+                        let result = view3D.pick(mouse.x, mouse.y)
+                        if (result.objectHit) {
+                            let nodeId = result.objectHit.objectName
+                            if (nodeId) {
+                                // Find node data in layout model
+                                for (let i = 0; i < layout.sceneNodes.length; i++) {
+                                    if (layout.sceneNodes[i].id === nodeId) {
+                                        selectedSceneNode = layout.sceneNodes[i]
+                                        break
+                                    }
+                                }
+                            }
+                        } else {
+                            selectedSceneNode = null
+                        }
+                    }
                 }
 
                 onPositionChanged: (mouse) => {
                     let dx = mouse.x - lastX
                     let dy = mouse.y - lastY
                     
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true
+                    
                     if (mouse.buttons & Qt.LeftButton) {
-                        // Pan: move the pivot point in the plane of the camera
-                        let panSpeed = camera.z / 1000.0
-                        let move = Qt.vector3d(-dx * panSpeed, dy * panSpeed, 0)
-                        cameraPivot.position = cameraPivot.position.plus(cameraOrbit.mapDirectionToScene(move))
+                        if (app.editorMode && selectedSceneNode) {
+                            // Object dragging logic
+                            // Move object in the plane parallel to the camera
+                            // Divide by 100.0 to account for observatoryNode scale
+                            let moveScale = (camera.z / 1000.0) / 100.0
+                            let move = Qt.vector3d(dx * moveScale, -dy * moveScale, 0)
+                            let rotatedMove = cameraOrbit.mapDirectionToScene(move)
+                            
+                            let currentOffset = selectedSceneNode.offset
+                            let newOffset = Qt.vector3d(currentOffset.x + rotatedMove.x,
+                                                       currentOffset.y + rotatedMove.y,
+                                                       currentOffset.z + rotatedMove.z)
+                            
+                            layout.updateSceneNode(selectedSceneNode.id, { "offset": newOffset })
+                            
+                            // Update our local copy so the next frame's dx/dy is applied to the new position
+                            selectedSceneNode.offset = newOffset 
+                        } else {
+                            // Pan: move the pivot point in the plane of the camera
+                            let panSpeed = camera.z / 1000.0
+                            let move = Qt.vector3d(-dx * panSpeed, dy * panSpeed, 0)
+                            cameraPivot.position = cameraPivot.position.plus(cameraOrbit.mapDirectionToScene(move))
+                        }
                     } else if (mouse.buttons & Qt.RightButton) {
                         // Rotate: orbit around the pivot
                         cameraOrbit.eulerRotation.y -= dx * 0.2
@@ -675,6 +756,91 @@ ApplicationWindow {
                     let newZ = camera.z - (event.angleDelta.y / 120.0) * zoomSpeed
                     camera.z = Math.max(100, Math.min(4000, newZ))
                 }
+            }
+        }
+
+        Dashboard {
+                id: customDashboard
+                visible: app.showDashboard
+            }
+        }
+    }
+
+    Rectangle {
+        id: sceneEditorPanel
+        width: 300
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        visible: app.editorMode && !app.showDashboard
+        color: app.theme === "Dark" ? "#222222" : "#f0f0f0"
+        border.color: "#444"
+        z: 10 // Ensure it's above the 3D view
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 10
+            
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: qsTr("Scene Editor")
+                    font.bold: true
+                    font.pixelSize: 18
+                    Layout.fillWidth: true
+                }
+                Button {
+                    text: qsTr("Exit")
+                    onClicked: {
+                        app.editorMode = false
+                        selectedSceneNode = null
+                        app.saveLayout()
+                    }
+                }
+            }
+            
+            Label { text: qsTr("Scene Nodes") }
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 150
+                model: layout ? layout.sceneNodes : []
+                clip: true
+                delegate: ItemDelegate {
+                    width: parent.width
+                    text: modelData.id + " (" + modelData.model + ")"
+                    highlighted: selectedSceneNode && selectedSceneNode.id === modelData.id
+                    onClicked: selectedSceneNode = modelData
+                }
+            }
+
+            Label { text: qsTr("Add Asset") }
+            RowLayout {
+                Layout.fillWidth: true
+                ComboBox {
+                    id: assetCombo
+                    Layout.fillWidth: true
+                    model: ["#Cube", "#Sphere", "#Cylinder", "Dome.qml", "Pier.qml", "MountAzimuth.qml", "Tube.qml"]
+                }
+                Button {
+                    text: "+"
+                    onClicked: {
+                        let id = assetCombo.currentText.toLowerCase().replace(".qml", "") + "_" + Date.now()
+                        let model = assetCombo.currentText
+                        layout.addSceneNode({
+                            "id": id,
+                            "model": model,
+                            "parent": "",
+                            "offset": Qt.vector3d(0, 0, 0),
+                            "motion": { "type": "none", "axis": Qt.vector3d(0,1,0), "property": "" }
+                        })
+                    }
+                }
+            }
+            
+            SceneInspector {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                selectedNode: selectedSceneNode
             }
         }
     }

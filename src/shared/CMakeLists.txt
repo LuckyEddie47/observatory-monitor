@@ -16,6 +16,12 @@ add_library(observatory-shared STATIC
     ControllerProxy.h
     AbstractController.h
     Types.h
+    CapabilityRegistry.cpp
+    CapabilityRegistry.h
+    ValueMappingEngine.cpp
+    ValueMappingEngine.h
+    LayoutConfig.cpp
+    LayoutConfig.h
 )
 
 target_include_directories(observatory-shared PUBLIC
@@ -25,6 +31,7 @@ target_include_directories(observatory-shared PUBLIC
 
 target_link_libraries(observatory-shared PUBLIC
     Qt6::Core
+    Qt6::Gui
     Qt6::Mqtt
     yaml-cpp
 )

@@ -47,12 +47,14 @@ struct GuiConfig {
     bool showGauges;
     bool show3DView;
     int sidebarWidth;
+    QString sidebarPosition;
     
     GuiConfig() 
         : theme("Dark")
         , showGauges(true)
         , show3DView(true)
-        , sidebarWidth(280) 
+        , sidebarWidth(280)
+        , sidebarPosition("Left")
     {}
 };
 

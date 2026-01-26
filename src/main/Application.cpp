@@ -3,8 +3,10 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTimer>
 #include <QQmlContext>
+#include <QtQml>
 #include <iostream>
 
 #ifdef Q_OS_UNIX
@@ -60,6 +62,16 @@ void Application::saveConfig()
     }
 }
 
+void Application::saveLayout()
+{
+    QString error;
+    if (!m_layout.saveToFile(m_layoutPath, error)) {
+        Logger::instance().error("Failed to save layout: " + error);
+    } else {
+        Logger::instance().info("Layout saved successfully to " + m_layoutPath);
+    }
+}
+
 void Application::setTheme(const QString& theme)
 {
     if (m_config.gui().theme != theme) {
@@ -90,6 +102,22 @@ void Application::setShow3DView(bool show)
     }
 }
 
+void Application::setShowDashboard(bool show)
+{
+    if (m_showDashboard != show) {
+        m_showDashboard = show;
+        emit showDashboardChanged();
+    }
+}
+
+void Application::setEditorMode(bool mode)
+{
+    if (m_editorMode != mode) {
+        m_editorMode = mode;
+        emit editorModeChanged();
+    }
+}
+
 void Application::setSidebarWidth(int width)
 {
     if (m_config.gui().sidebarWidth != width) {
@@ -97,6 +125,16 @@ void Application::setSidebarWidth(int width)
         gui.sidebarWidth = width;
         m_config.setGui(gui);
         emit sidebarWidthChanged();
+    }
+}
+
+void Application::setSidebarPosition(const QString& position)
+{
+    if (m_config.gui().sidebarPosition != position) {
+        GuiConfig gui = m_config.gui();
+        gui.sidebarPosition = position;
+        m_config.setGui(gui);
+        emit sidebarPositionChanged();
     }
 }
 
@@ -169,6 +207,11 @@ void Application::updateBrokerConfig()
 
 bool Application::initialize()
 {
+    qmlRegisterType<ControllerProxy>("ObservatoryMonitor", 1, 0, "ControllerProxy");
+    qmlRegisterUncreatableType<CapabilityRegistry>("ObservatoryMonitor", 1, 0, "CapabilityRegistry", "Access through app.caps");
+    qmlRegisterUncreatableType<LayoutConfig>("ObservatoryMonitor", 1, 0, "LayoutConfig", "Access through app.layout");
+    qmlRegisterUncreatableType<ValueMappingEngine>("ObservatoryMonitor", 1, 0, "ValueMappingEngine", "Access through app.valueMappingEngine");
+
     if (!setupPaths()) return false;
     if (!loadConfiguration()) return false;
     if (!setupLogger()) return false;
@@ -191,6 +234,8 @@ bool Application::setupPaths()
 {
     m_configDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     m_configPath = m_configDir + "/config.yaml";
+    m_layoutPath = m_configDir + "/layout.yaml";
+    m_capsPath = m_configDir + "/capabilities.yaml";
 
 #ifdef Q_OS_LINUX
     if (getuid() == 0) {
@@ -241,6 +286,30 @@ bool Application::loadConfiguration()
         if (!m_config.loadFromFile(m_configPath, errorMessage)) {
             std::cerr << "Failed to load config file: " << errorMessage.toStdString() << std::endl;
             return false;
+        }
+    }
+
+    // Load capabilities
+    if (!QFile::exists(m_capsPath)) {
+        m_capabilities.setDefaults();
+        m_capabilities.saveToFile(m_capsPath, errorMessage);
+    } else {
+        m_capabilities.loadFromFile(m_capsPath, errorMessage);
+    }
+
+    // Load layout
+    if (!QFile::exists(m_layoutPath)) {
+        m_layout.setDefaults();
+        m_layout.saveToFile(m_layoutPath, errorMessage);
+    } else {
+        if (!m_layout.loadFromFile(m_layoutPath, errorMessage)) {
+            std::cerr << "Failed to load layout file: " << errorMessage.toStdString() << std::endl;
+            // Don't return false, just use defaults
+            m_layout.setDefaults();
+        } else if (!m_layout.validate(&m_capabilities, errorMessage)) {
+            Logger::instance().error("Layout validation failed: " + errorMessage);
+            // We don't revert to defaults here so the user can see the error banner 
+            // and fix the layout in the editor.
         }
     }
 
@@ -316,6 +385,9 @@ void Application::setupQml()
 {
     using namespace Qt::StringLiterals;
     m_engine.rootContext()->setContextProperty("app", this);
+    m_engine.rootContext()->setContextProperty("caps", &m_capabilities);
+    m_engine.rootContext()->setContextProperty("layout", &m_layout);
+    m_engine.rootContext()->setContextProperty("valueMappingEngine", &m_valueMappingEngine);
     m_engine.rootContext()->setContextProperty("controllerModel", m_controllerListModel);
     
     // List of potential paths to try
@@ -335,7 +407,13 @@ void Application::setupQml()
     
     for (const QString& fb : fallbacks) {
         if (QFile::exists(fb)) {
-            urls.append(QUrl::fromLocalFile(fb).toString());
+            QString url = QUrl::fromLocalFile(fb).toString();
+            urls.append(url);
+            
+            // Add the directory to import paths
+            QFileInfo info(fb);
+            m_engine.addImportPath(info.absolutePath());
+            m_engine.addImportPath(info.absolutePath() + "/widgets");
         }
     }
 

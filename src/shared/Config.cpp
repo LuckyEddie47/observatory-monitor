@@ -37,6 +37,7 @@ void Config::setDefaults()
     m_gui.showGauges = true;
     m_gui.show3DView = true;
     m_gui.sidebarWidth = 280;
+    m_gui.sidebarPosition = "Left";
     
     // Default controllers
     m_controllers.clear();
@@ -154,6 +155,7 @@ bool Config::loadFromFile(const QString& filePath, QString& errorMessage)
             if (gui["show_gauges"]) m_gui.showGauges = gui["show_gauges"].as<bool>();
             if (gui["show_3d_view"]) m_gui.show3DView = gui["show_3d_view"].as<bool>();
             if (gui["sidebar_width"]) m_gui.sidebarWidth = gui["sidebar_width"].as<int>();
+            if (gui["sidebar_position"]) m_gui.sidebarPosition = QString::fromStdString(gui["sidebar_position"].as<std::string>());
         }
         
         return true;
@@ -255,6 +257,7 @@ bool Config::saveToFile(const QString& filePath, QString& errorMessage)
         out << YAML::Key << "show_gauges" << YAML::Value << m_gui.showGauges;
         out << YAML::Key << "show_3d_view" << YAML::Value << m_gui.show3DView;
         out << YAML::Key << "sidebar_width" << YAML::Value << m_gui.sidebarWidth;
+        out << YAML::Key << "sidebar_position" << YAML::Value << m_gui.sidebarPosition.toStdString();
         out << YAML::EndMap;
         
         out << YAML::EndMap;

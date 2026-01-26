@@ -16,6 +16,15 @@ qt_add_qml_module(observatory-monitor
         ../../resources/qml/Tube.qml
         ../../resources/qml/CircularGauge.qml
         ../../resources/qml/LevelGauge.qml
+        ../../resources/qml/Dashboard.qml
+        ../../resources/qml/PhysicalRelationship.qml
+        ../../resources/qml/SceneComposer.qml
+        ../../resources/qml/SceneNode.qml
+        ../../resources/qml/SceneInspector.qml
+        ../../resources/qml/ShutterStatus.qml
+        ../../resources/qml/widgets/AnalogWidget.qml
+        ../../resources/qml/widgets/BinaryWidget.qml
+        ../../resources/qml/widgets/NumericWidget.qml
     RESOURCES
         ../../resources/models/Dome.gltf
         ../../resources/models/MountAzimuth.gltf

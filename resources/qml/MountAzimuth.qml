@@ -3,6 +3,8 @@ import QtQuick3D
 
 Node {
     id: node
+    
+    property string nodeId: ""
 
     // Resources
     PrincipledMaterial {
@@ -16,7 +18,8 @@ Node {
     // Nodes:
     Model {
         id: mountAzimuth
-        objectName: "MountAzimuth"
+        objectName: node.nodeId
+        pickable: true
         source: "meshes/mountAzimuth_mesh.mesh"
         materials: [
             mountMaterial,

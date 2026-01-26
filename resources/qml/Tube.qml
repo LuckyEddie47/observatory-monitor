@@ -3,6 +3,8 @@ import QtQuick3D
 
 Node {
     id: node
+    
+    property string nodeId: ""
 
     // Resources
     PrincipledMaterial {
@@ -16,7 +18,8 @@ Node {
     // Nodes:
     Model {
         id: tube
-        objectName: "Tube"
+        objectName: node.nodeId
+        pickable: true
         source: "meshes/tube_mesh.mesh"
         materials: [
             tubeMaterial,

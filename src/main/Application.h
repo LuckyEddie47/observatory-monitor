@@ -5,6 +5,8 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include "Config.h"
+#include "CapabilityRegistry.h"
+#include "LayoutConfig.h"
 #include "ControllerManager.h"
 #include "ControllerListModel.h"
 #include "ControllerProxy.h"
@@ -18,7 +20,10 @@ class Application : public QObject
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(bool showGauges READ showGauges WRITE setShowGauges NOTIFY showGaugesChanged)
     Q_PROPERTY(bool show3DView READ show3DView WRITE setShow3DView NOTIFY show3DViewChanged)
+    Q_PROPERTY(bool showDashboard READ showDashboard WRITE setShowDashboard NOTIFY showDashboardChanged)
+    Q_PROPERTY(bool editorMode READ editorMode WRITE setEditorMode NOTIFY editorModeChanged)
     Q_PROPERTY(int sidebarWidth READ sidebarWidth WRITE setSidebarWidth NOTIFY sidebarWidthChanged)
+    Q_PROPERTY(QString sidebarPosition READ sidebarPosition WRITE setSidebarPosition NOTIFY sidebarPositionChanged)
 
     // MQTT Broker Properties
     Q_PROPERTY(QString mqttHost READ mqttHost WRITE setMqttHost NOTIFY mqttHostChanged)
@@ -36,6 +41,7 @@ public:
 
     Q_INVOKABLE ObservatoryMonitor::ControllerProxy* getController(const QString& name);
     Q_INVOKABLE void saveConfig();
+    Q_INVOKABLE void saveLayout();
 
     QString systemStatus() const;
 
@@ -48,8 +54,17 @@ public:
     bool show3DView() const { return m_config.gui().show3DView; }
     void setShow3DView(bool show);
 
+    bool showDashboard() const { return m_showDashboard; }
+    void setShowDashboard(bool show);
+
+    bool editorMode() const { return m_editorMode; }
+    void setEditorMode(bool mode);
+
     int sidebarWidth() const { return m_config.gui().sidebarWidth; }
     void setSidebarWidth(int width);
+
+    QString sidebarPosition() const { return m_config.gui().sidebarPosition; }
+    void setSidebarPosition(const QString& position);
 
     // MQTT Broker Getters/Setters
     QString mqttHost() const { return m_config.broker().host; }
@@ -75,7 +90,10 @@ signals:
     void themeChanged();
     void showGaugesChanged();
     void show3DViewChanged();
+    void showDashboardChanged();
+    void editorModeChanged();
     void sidebarWidthChanged();
+    void sidebarPositionChanged();
     void mqttHostChanged();
     void mqttPortChanged();
     void mqttUsernameChanged();
@@ -97,12 +115,19 @@ private:
     
     QString m_configDir;
     QString m_configPath;
+    QString m_layoutPath;
+    QString m_capsPath;
     QString m_logDir;
     
     Config m_config;
+    CapabilityRegistry m_capabilities;
+    LayoutConfig m_layout;
+    ValueMappingEngine m_valueMappingEngine;
     ControllerManager m_controllerManager;
     ControllerListModel* m_controllerListModel;
     QHash<QString, ControllerProxy*> m_proxies;
+    bool m_showDashboard = false;
+    bool m_editorMode = false;
 };
 
 } // namespace ObservatoryMonitor

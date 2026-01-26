@@ -22,6 +22,11 @@ ControllerProxy::ControllerProxy(const QString& name, ControllerManager* manager
     }
 }
 
+QVariant ControllerProxy::getProperty(const QString& name) const
+{
+    return m_properties.value(name);
+}
+
 QString ControllerProxy::status() const
 {
     if (!m_manager) return "Unknown";
@@ -38,6 +43,12 @@ QString ControllerProxy::status() const
 void ControllerProxy::onDataUpdated(const QString& controllerName, const QString& command, const QString& value)
 {
     if (controllerName != m_name) return;
+
+    // Update generic property map
+    if (m_properties.value(command) != value) {
+        m_properties[command] = value;
+        emit propertyChanged(command, value);
+    }
 
     if (command == ":DZ#" || command == ":GZ#") {
         double val = parseDegrees(value);

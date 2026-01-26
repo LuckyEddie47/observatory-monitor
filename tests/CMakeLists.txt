@@ -24,4 +24,13 @@ target_link_libraries(test_logger PRIVATE
 
 add_test(NAME LoggerTests COMMAND test_logger)
 
+# Test executable for Layout
+add_executable(test_layout test_layout.cpp)
+target_link_libraries(test_layout PRIVATE
+    observatory-shared
+    Qt6::Test
+)
+
+add_test(NAME LayoutTests COMMAND test_layout)
+
 message(STATUS "Unit tests configured")

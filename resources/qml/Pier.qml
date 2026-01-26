@@ -3,6 +3,8 @@ import QtQuick3D
 
 Node {
     id: node
+    
+    property string nodeId: ""
 
     // Resources
     PrincipledMaterial {
@@ -15,7 +17,8 @@ Node {
     // Nodes:
     Model {
         id: pier
-        objectName: "Pier"
+        objectName: node.nodeId
+        pickable: true
         source: "meshes/pier_mesh.mesh"
         materials: [
             pierMaterial,
