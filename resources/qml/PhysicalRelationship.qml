@@ -35,7 +35,7 @@ Node {
         var controllerName = parts[0];
         targetPropertyName = parts[1];
         
-        var propDef = caps.getProperty(controllerName, targetPropertyName);
+        var propDef = app.caps.getProperty(controllerName, targetPropertyName);
         targetCommand = propDef ? propDef.command : targetPropertyName;
         
         targetController = app.getController(controllerName);
@@ -47,7 +47,7 @@ Node {
     function updateValue() {
         if (targetController && targetCommand) {
             var rawValue = targetController.getProperty(targetCommand);
-            root.value = valueMappingEngine.mapValue(rawValue, mapping);
+            root.value = app.valueMappingEngine.mapValue(rawValue, mapping);
         }
     }
 
@@ -56,7 +56,7 @@ Node {
         ignoreUnknownSignals: true
         function onPropertyChanged(name, val) {
             if (name === root.targetCommand || name === root.targetPropertyName) {
-                root.value = valueMappingEngine.mapValue(val, root.mapping);
+                root.value = app.valueMappingEngine.mapValue(val, root.mapping);
             }
         }
     }

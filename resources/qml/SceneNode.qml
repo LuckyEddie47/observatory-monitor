@@ -69,8 +69,11 @@ Node {
             active: app.editorMode
             source: "SceneGizmo.qml"
             onLoaded: {
-                item.nodeId = nodeData ? nodeData.id : ""
-                item.sharedMaterials = root.sharedMaterials
+                if (item) {
+                    item.parent = motionNode
+                    item.nodeId = Qt.binding(function() { return nodeData ? nodeData.id : "" })
+                    item.sharedMaterials = Qt.binding(function() { return root.sharedMaterials })
+                }
             }
         }
 
@@ -81,10 +84,12 @@ Node {
             delegate: Loader {
                 source: "SceneNode.qml"
                 onLoaded: {
-                    item.nodeData = modelData
-                    item.childrenMap = root.childrenMap
-                    item.sharedMaterials = root.sharedMaterials
-                    item.parent = motionNode
+                    if (item) {
+                        item.parent = motionNode
+                        item.nodeData = Qt.binding(function() { return modelData })
+                        item.childrenMap = Qt.binding(function() { return root.childrenMap })
+                        item.sharedMaterials = Qt.binding(function() { return root.sharedMaterials })
+                    }
                 }
             }
         }

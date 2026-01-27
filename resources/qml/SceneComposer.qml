@@ -39,16 +39,20 @@ Node {
         delegate: Loader {
             source: "SceneNode.qml"
             onLoaded: {
-                item.nodeData = modelData
-                item.childrenMap = root.childrenMap
-                item.sharedMaterials = {
-                    "default": root.defaultMaterial,
-                    "x": root.xMaterial,
-                    "y": root.yMaterial,
-                    "z": root.zMaterial,
-                    "selection": root.selectionMaterial
+                if (item) {
+                    item.parent = root
+                    item.nodeData = Qt.binding(function() { return modelData })
+                    item.childrenMap = Qt.binding(function() { return root.childrenMap })
+                    item.sharedMaterials = Qt.binding(function() {
+                        return {
+                            "default": root.defaultMaterial,
+                            "x": root.xMaterial,
+                            "y": root.yMaterial,
+                            "z": root.zMaterial,
+                            "selection": root.selectionMaterial
+                        }
+                    })
                 }
-                item.parent = root
             }
         }
     }

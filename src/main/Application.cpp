@@ -391,15 +391,10 @@ void Application::setupQml()
     m_engine.rootContext()->setContextProperty("valueMappingEngine", &m_valueMappingEngine);
     m_engine.rootContext()->setContextProperty("controllerModel", m_controllerListModel);
     
-    // List of potential paths to try
-    QStringList urls = {
-        "qrc:/qt/qml/ObservatoryMonitor/main.qml",
-        "qrc:/qt/resources/qml/main.qml",
-        "qrc:/ObservatoryMonitor/main.qml",
-        "qrc:/main.qml"
-    };
+    // Prioritize local paths to avoid QRC warnings during development
+    QStringList urls;
     
-    // Add local fallbacks
+    // Add local fallbacks first
     QStringList fallbacks = {
         QCoreApplication::applicationDirPath() + "/../resources/qml/main.qml",
         "resources/qml/main.qml",
@@ -418,6 +413,14 @@ void Application::setupQml()
         }
     }
 
+    // Add QRC paths as secondary
+    urls.append({
+        "qrc:/qt/qml/ObservatoryMonitor/main.qml",
+        "qrc:/qt/resources/qml/main.qml",
+        "qrc:/ObservatoryMonitor/main.qml",
+        "qrc:/main.qml"
+    });
+    
     connect(&m_engine, &QQmlApplicationEngine::objectCreated,
         &m_app, [this](QObject *obj, const QUrl &objUrl) {
             if (!obj) {
