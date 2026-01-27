@@ -9,13 +9,13 @@ Item {
     
     Rectangle {
         anchors.fill: parent
-        color: layout.backgroundColor !== "transparent" ? layout.backgroundColor : (app.theme === "Dark" ? "#1a1a1a" : "#f5f5f5")
+        color: layout && layout.backgroundColor !== undefined && layout.backgroundColor !== "transparent" ? layout.backgroundColor : (app.theme === "Dark" ? "#1a1a1a" : "#f5f5f5")
         
         Image {
             anchors.fill: parent
-            source: layout.backgroundSource
+            source: layout && layout.backgroundSource !== undefined ? layout.backgroundSource : ""
             fillMode: Image.PreserveAspectCrop
-            visible: layout.backgroundSource !== ""
+            visible: layout && layout.backgroundSource !== undefined && layout.backgroundSource !== ""
         }
 
         // Grid background for editor mode
@@ -43,7 +43,7 @@ Item {
 
     // Dynamic Widgets
     Repeater {
-        model: layout ? layout.widgets : []
+        model: layout && layout.widgets !== undefined ? layout.widgets : []
         
         Loader {
             id: widgetLoader
@@ -171,14 +171,14 @@ Item {
                             TextField {
                                 id: bgColorField
                                 Layout.fillWidth: true
-                                text: layout.backgroundColor
+                                text: layout && layout.backgroundColor !== undefined ? layout.backgroundColor : ""
                                 placeholderText: "#RRGGBB or name"
-                                onEditingFinished: layout.backgroundColor = text
+                                onEditingFinished: if (layout) layout.backgroundColor = text
                             }
                             Rectangle {
                                 width: 20
                                 height: 20
-                                color: layout.backgroundColor
+                                color: layout && layout.backgroundColor !== undefined ? layout.backgroundColor : "transparent"
                                 border.color: "gray"
                             }
                         }
@@ -186,17 +186,19 @@ Item {
                         Label { text: qsTr("Background Image (URL/Path):") }
                         TextField {
                             Layout.fillWidth: true
-                            text: layout.backgroundSource
+                            text: layout && layout.backgroundSource !== undefined ? layout.backgroundSource : ""
                             placeholderText: "file:///path/to/image.jpg"
-                            onEditingFinished: layout.backgroundSource = text
+                            onEditingFinished: if (layout) layout.backgroundSource = text
                         }
                         
                         Button {
                             text: qsTr("Clear Background")
                             Layout.fillWidth: true
                             onClicked: {
-                                layout.backgroundSource = ""
-                                layout.backgroundColor = "transparent"
+                                if (layout) {
+                                    layout.backgroundSource = ""
+                                    layout.backgroundColor = "transparent"
+                                }
                                 bgColorField.text = "transparent"
                             }
                         }

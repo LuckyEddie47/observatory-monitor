@@ -20,11 +20,10 @@ class ControllerProxy : public QObject
     Q_PROPERTY(QString shutterStatus READ shutterStatus NOTIFY shutterStatusChanged)
     Q_PROPERTY(QString sideOfPier READ sideOfPier NOTIFY sideOfPierChanged)
 
-    Q_INVOKABLE QVariant getProperty(const QString& name) const;
-
 public:
     explicit ControllerProxy(const QString& name, ControllerManager* manager, QObject* parent = nullptr);
 
+    Q_INVOKABLE QVariant getProperty(const QString& name) const;
     QString name() const { return m_name; }
     double azimuth() const { return m_azimuth; }
     double altitude() const { return m_altitude; }

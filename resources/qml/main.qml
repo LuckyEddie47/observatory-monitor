@@ -21,7 +21,7 @@ ApplicationWindow {
         color: "#e74c3c"
         visible: height > 0
         z: 999
-        anchors.top: parent.header.bottom
+        anchors.top: parent.top
         
         Behavior on height { NumberAnimation { duration: 200 } }
         

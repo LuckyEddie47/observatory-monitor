@@ -20,6 +20,7 @@ qt_add_qml_module(observatory-monitor
         ../../resources/qml/PhysicalRelationship.qml
         ../../resources/qml/SceneComposer.qml
         ../../resources/qml/SceneNode.qml
+        ../../resources/qml/SceneGizmo.qml
         ../../resources/qml/SceneInspector.qml
         ../../resources/qml/ShutterStatus.qml
         ../../resources/qml/widgets/AnalogWidget.qml

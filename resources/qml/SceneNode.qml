@@ -50,7 +50,7 @@ Node {
         Model {
             id: directModel
             pickable: true
-            objectName: nodeData ? nodeData.id : ""
+            objectName: (nodeData && nodeData.id) ? nodeData.id : ""
             visible: source !== ""
             source: {
                 if (!nodeData || !nodeData.model) return "";

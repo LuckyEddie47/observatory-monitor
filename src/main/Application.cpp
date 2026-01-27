@@ -384,9 +384,10 @@ void Application::setupControllers()
 void Application::setupQml()
 {
     using namespace Qt::StringLiterals;
+    // Ensure all context properties are set before any QML is loaded
     m_engine.rootContext()->setContextProperty("app", this);
     m_engine.rootContext()->setContextProperty("caps", &m_capabilities);
-    m_engine.rootContext()->setContextProperty("layout", &m_layout);
+    m_engine.rootContext()->setContextProperty("layout", &m_layout); // m_layout is always constructed before QML loads
     m_engine.rootContext()->setContextProperty("valueMappingEngine", &m_valueMappingEngine);
     m_engine.rootContext()->setContextProperty("controllerModel", m_controllerListModel);
     
